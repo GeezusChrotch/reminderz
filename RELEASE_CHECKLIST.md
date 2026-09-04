@@ -10,7 +10,7 @@
 - [x] Targeted Stop Private Sync never resets unrelated Tailscale routes.
 - [x] The complete project is marked MIT-licensed and free, with no paid feature or account tier.
 
-## Manual acceptance before public publication
+## Post-release device acceptance
 
 - [ ] Complete, reopen, and dictate a disposable reminder on the physical Pebble using the 1.0 build.
 - [ ] Read a long reminder through a full marquee cycle on Basalt and Emery.
@@ -25,13 +25,13 @@
 
 ## Publication details that must be supplied
 
-- [ ] Create and push the public MIT-licensed source repository; replace source/support placeholders.
-- [ ] Choose a support email and private security-reporting channel.
-- [ ] Confirm the public Connector download URL and its SHA-256 checksum.
-- [ ] Create a private Rebble listing first and verify install/settings/companion links.
-- [ ] Upload the PBW, both icons, platform asset collections, screenshots, banner, description, and
-      release notes.
-- [ ] Verify the listing preview on both supported platforms before selecting **Publish**.
+- [x] Create and push the public MIT-licensed source repository; replace source/support placeholders.
+- [x] Use GitHub Issues for support and GitHub Security Advisories for private security reports.
+- [x] Publish the Connector download and PBW in the `v1.0.0` GitHub release with matching SHA-256 checksums.
+- [x] Publish the PBW, both icons, Basalt and Emery screenshots, description, and release notes.
+- [x] Verify the live listing and its supported Basalt and Emery platform metadata.
+- [ ] Upload the prepared marketing banner when the current developer dashboard adds banner upload support.
 
-Do not describe the release as published, notarized, or clean-install tested until those exact checks
-are complete.
+The Appstore listing and notarized release artifacts are public. Do not describe the physical-watch,
+remote-tailnet, concurrent-edit, boundary, login, or clean-account checks as complete until each is
+observed on its target hardware and account.
