@@ -22,7 +22,9 @@ the permanent Connector token is delivered only after the iPhone reaches that pr
 Tailscale. Choose **Connect Phone** again whenever a fresh code is needed.
 
 The Connector must remain running and the Mac must stay awake, but its window may be closed after
-setup. Quit the Connector to stop its local service. **Stop Private Sync** removes only Reminderz's
+setup. Reopen the app to manage it. **Stop Service** pauses sync; **Start Service** resumes it, and
+**Restart Service** restarts it without changing pairing. Quitting the Connector also stops its
+local service. **Stop Private Sync** removes only Reminderz's
 Tailscale route; it does not alter other services.
 
 ## Build-from-source installation

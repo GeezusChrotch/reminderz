@@ -3,9 +3,10 @@ set -eu
 
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 version=$(node -p "require('$project_dir/package.json').version")
+connector_version=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$project_dir/mac/Info.plist")
 stage=$(mktemp -d -t reminderz-dmg)
 trap 'rm -rf "$stage"' EXIT
-dmg="$project_dir/dist/Reminderz-Connector-$version.dmg"
+dmg="$project_dir/dist/Reminderz-Connector-$connector_version.dmg"
 signing_identity=${REMINDERZ_SIGNING_IDENTITY:-}
 
 if [ -z "$signing_identity" ]; then

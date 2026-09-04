@@ -3,7 +3,8 @@ set -eu
 
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 version=$(node -p "require('$project_dir/package.json').version")
-dmg="$project_dir/dist/Reminderz-Connector-$version.dmg"
+connector_version=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$project_dir/mac/Info.plist")
+dmg="$project_dir/dist/Reminderz-Connector-$connector_version.dmg"
 profile=${REMINDERZ_NOTARY_PROFILE:-${1:-}}
 
 if [ -z "$profile" ]; then

@@ -2,7 +2,7 @@
 
 ## Automated and packaged
 
-- [x] Watch and Connector versions match at `1.0.0`.
+- [x] Watch `1.0.0` and Connector `1.0.1` use the same version 1 sync API.
 - [x] Node tests, Swift typecheck, Basalt build, and Emery build run through `npm run check`.
 - [x] No account, reminder, hostname, access token, or pairing code is embedded in the package.
 - [x] 25×25 launcher, 80×80 and 144×144 store icons, 512×512 master, Mac icon, and 720×320 banner exist.
@@ -35,3 +35,12 @@
 The Appstore listing and notarized release artifacts are public. Do not describe the physical-watch,
 remote-tailnet, concurrent-edit, boundary, login, or clean-account checks as complete until each is
 observed on its target hardware and account.
+
+## Connector 1.0.1 regression checks — 2026-09-04
+
+- [x] Reproduced the old close/reopen crash; crash report identifies `applicationShouldHandleReopen`.
+- [x] Closing and reopening the patched window preserves the process and service.
+- [x] Stop Service closes the listener and exposes Start Service.
+- [x] Start Service restores the listener; Restart Service works both while running and while stopped.
+- [x] Existing Reminders permission, pairing token, Start at Login, and private route remain usable.
+- [x] Apple accepted the Connector 1.0.1 notarization; ticket stapled and Gatekeeper assessment passed.

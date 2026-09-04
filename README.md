@@ -35,13 +35,16 @@ The connector listens only on `127.0.0.1:7843`. Its **Start Private Sync** butto
 tailnet-only HTTPS route on port `10447`. It never enables Tailscale Funnel or opens a router port.
 The Mac and iPhone must both be signed into Tailscale, and the Mac must be awake with Reminderz
 Connector running. Its window may be closed after setup; quitting the Connector stops sync.
+Connector 1.0.1 fixes reopening a closed window and adds **Stop Service**, **Start Service**, and
+**Restart Service** controls. These preserve pairing and the Tailscale route. It works with watch
+app 1.0.0; no watch update is needed.
 
 ## Install
 
 Reminderz needs three pieces: this watch app, the free Reminderz Connector on a Mac, and Tailscale
 on that Mac and the paired iPhone. Install the watch app from the
 [Pebble Appstore](https://apps.repebble.com/d7f2ccd94a0746d1a059433a), then download the Connector
-`.dmg` from the matching [GitHub release](https://github.com/GeezusChrotch/reminderz/releases/tag/v1.0.0).
+`.dmg` from the [latest GitHub release](https://github.com/GeezusChrotch/reminderz/releases/latest).
 Drag the Connector to Applications and follow its three required green setup checks. The QR pairing
 page copies its details directly on the iPhone.
 

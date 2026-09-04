@@ -1,6 +1,13 @@
 # Changelog
 
-## 1.0.0 — release candidate
+## Connector 1.0.1
+
+- Fix a crash when reopening the Connector after closing its window.
+- Closing the window hides it and keeps reminder sync running.
+- Add Stop Service, Start Service, and Restart Service controls without changing pairing or Tailscale routes.
+- Continue supporting watch app 1.0.0; no watch update or re-pairing is required.
+
+## 1.0.0
 
 - Browse Apple Reminders lists with open and completed counts.
 - Browse open and completed reminders with clear drawn checkboxes.

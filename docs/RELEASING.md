@@ -1,8 +1,8 @@
 # Release procedure
 
 1. Finish every manual acceptance item in [the release checklist](../RELEASE_CHECKLIST.md).
-2. Confirm `package.json`, the Connector `Info.plist`, changelog, listing, and release notes use the
-   same `major.minor.0` version.
+2. Confirm watch versions in `package.json` and Connector versions in `Info.plist` and the API match
+   their release notes. Compatible Connector-only patches can ship independently of the watch app.
 3. Run `npm run check`, then `npm run package`.
 4. Verify the app inside the DMG is a universal Developer ID build with hardened runtime enabled.
 5. Set `REMINDERZ_NOTARY_PROFILE` to an existing `notarytool` Keychain profile and run

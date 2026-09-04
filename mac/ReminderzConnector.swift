@@ -8,7 +8,7 @@ import ServiceManagement
 
 private let localPort: NWEndpoint.Port = 7843
 private let servePort = "10447"
-private let connectorVersion = "1.0.0"
+private let connectorVersion = "1.0.1"
 
 private struct HTTPRequest {
     let method: String
@@ -47,6 +47,23 @@ private final class ReminderServer {
             self.listener = listener
             listener.start(queue: queue)
         } catch { completion(.failure(error)) }
+    }
+
+    func stop(completion: @escaping () -> Void) {
+        queue.async {
+            self.pairingCodes.removeAll()
+            guard let listener = self.listener else {
+                DispatchQueue.main.async(execute: completion)
+                return
+            }
+            self.listener = nil
+            listener.stateUpdateHandler = { state in
+                if case .cancelled = state {
+                    DispatchQueue.main.async(execute: completion)
+                }
+            }
+            listener.cancel()
+        }
     }
 
     func makePairingURL(origin: String) -> URL? {
@@ -312,7 +329,7 @@ private final class ReminderServer {
     }
 }
 
-private final class AppDelegate: NSObject, NSApplicationDelegate {
+private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let store = EKEventStore()
     private var server: ReminderServer!
     private var window: NSWindow!
@@ -323,9 +340,14 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     private var loginButton: NSButton!
     private var summary: NSTextField!
     private var token = ""
+    private var serviceBusy = true
+    private var serviceStopped = false
+    private var serviceButton: NSButton!
+    private var restartButton: NSButton!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
+        ProcessInfo.processInfo.disableAutomaticTermination("Reminderz keeps syncing with its window closed")
         buildWindow()
         summary.stringValue = "Unlocking the Connector token…"
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -333,23 +355,74 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.token = token
-                self.server = ReminderServer(store: self.store, token: token)
-                self.server.start { [weak self] result in
-                    switch result {
-                    case .success:
-                        self?.setStatus(self?.connectorStatus, ok: true,
-                                        text: "Mac service: Running privately on this Mac")
-                    case .failure(let error):
-                        self?.setStatus(self?.connectorStatus, ok: false,
-                                        text: "Mac service: \(error.localizedDescription)")
-                    }
-                    self?.refresh()
-                }
+                self.startService()
             }
         }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        sender.orderOut(nil)
+        return false
+    }
+
+    private func startService() {
+        guard !token.isEmpty else { return }
+        serviceBusy = true
+        updateServiceButtons()
+        server = ReminderServer(store: store, token: token)
+        server.start { [weak self] result in
+            guard let self else { return }
+            self.serviceBusy = false
+            switch result {
+            case .success:
+                self.serviceStopped = false
+                self.refresh()
+            case .failure(let error):
+                self.serviceStopped = true
+                self.refresh()
+                self.setStatus(self.connectorStatus, ok: false, text: "Mac service: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func updateServiceButtons() {
+        serviceButton?.title = serviceStopped ? "Start Service" : "Stop Service"
+        serviceButton?.isEnabled = !serviceBusy && !token.isEmpty
+        restartButton?.isEnabled = !serviceBusy && !token.isEmpty
+    }
+
+    @objc private func toggleService() {
+        guard !serviceBusy else { return }
+        if serviceStopped { startService(); return }
+        stopService(restart: false)
+    }
+
+    @objc private func restartService() {
+        guard !serviceBusy else { return }
+        stopService(restart: true)
+    }
+
+    private func stopService(restart: Bool) {
+        serviceBusy = true
+        updateServiceButtons()
+        guard let server else {
+            if restart { startService() }
+            else { serviceBusy = false; refresh() }
+            return
+        }
+        server.stop { [weak self] in
+            guard let self else { return }
+            self.server = nil
+            self.serviceStopped = true
+            if restart { self.startService() }
+            else {
+                self.serviceBusy = false
+                self.refresh()
+            }
+        }
+    }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         window.makeKeyAndOrderFront(nil)
@@ -360,9 +433,11 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func buildWindow() {
         let content = NSView()
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 650),
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 760),
                           styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
         window.title = "Reminderz Connector"
+        window.isReleasedWhenClosed = false
+        window.delegate = self
         window.center()
         window.contentView = content
         let stack = NSStackView()
@@ -404,6 +479,16 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         stack.addArrangedSubview(loginRow)
         stack.addArrangedSubview(actionRow("Test Everything", #selector(refreshAction),
                                           "Checks permission, the local service, and the Tailscale route."))
+        let serviceRow = actionRow("Stop Service", #selector(toggleService),
+                                   "Pauses reminder sync. Use Start Service to resume.")
+        serviceButton = serviceRow.arrangedSubviews.first as? NSButton
+        stack.addArrangedSubview(serviceRow)
+        let restartRow = actionRow("Restart Service", #selector(restartService),
+                                   "Restarts sync using your existing pairing and permissions.")
+        restartButton = restartRow.arrangedSubviews.first as? NSButton
+        stack.addArrangedSubview(restartRow)
+        updateServiceButtons()
+        stack.addArrangedSubview(label("Closing this window keeps sync running. Reopen Reminderz Connector from Applications to manage the service."))
         let footer = label("Reminder titles travel only between your Apple devices and your private tailnet. The access token is stored in macOS Keychain. Connector \(connectorVersion).")
         footer.font = .systemFont(ofSize: 12)
         footer.textColor = .secondaryLabelColor
@@ -495,6 +580,10 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func connectPhone() {
+        guard !serviceStopped && !serviceBusy else {
+            showAlert("Start the service first", "Choose Start Service, then connect your phone.")
+            return
+        }
         guard !token.isEmpty else {
             showAlert("Connector token is still locked", "Approve the macOS Keychain prompt, then try again.")
             return
@@ -523,7 +612,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         setStatus(reminderStatus, ok: allowed,
                   text: allowed ? "Reminders access: Allowed" : "Reminders access: Select Allow Reminders")
         let local = !token.isEmpty && Self.localHealth(token: token)
-        setStatus(connectorStatus, ok: local, text: local ? "Mac service: Running" : "Mac service: Not reachable")
+        setStatus(connectorStatus, ok: local, text: local ? "Mac service: Running" : serviceStopped ? "Mac service: Stopped — select Start Service" : "Mac service: Not reachable")
+        updateServiceButtons()
         let origin = Self.privateOrigin()
         setStatus(privateStatus, ok: origin != nil,
                   text: origin.map { "Private sync: \($0)" } ?? "Private sync: Select Start Private Sync")
@@ -532,7 +622,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
                   text: loginEnabled ? "Start at login: Enabled" : "Start at login: Optional")
         loginButton?.title = loginEnabled ? "Stop Starting at Login" : "Start at Login"
         let ready = allowed && local && origin != nil
-        summary.stringValue = ready ? "Ready to connect your phone" : "Finish the highlighted setup steps"
+        summary.stringValue = ready ? "Sync is running — you can close this window" : serviceStopped ? "Sync is paused — select Start Service" : "Finish the highlighted setup steps"
         summary.textColor = ready ? .systemGreen : .labelColor
     }
 

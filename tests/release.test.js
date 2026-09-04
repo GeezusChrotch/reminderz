@@ -8,10 +8,13 @@ const pkg = require('../package.json');
 const plist = fs.readFileSync(path.join(root, 'mac/Info.plist'), 'utf8');
 const listing = fs.readFileSync(path.join(root, 'APPSTORE_LISTING.md'), 'utf8');
 
-test('watch and Connector release versions match', () => {
+test('Connector bundle and API versions match; watch remains compatible', () => {
   assert.equal(pkg.version, '1.0.0');
   assert.equal(pkg.license, 'MIT');
-  assert.match(plist, /CFBundleShortVersionString<\/key><string>1\.0\.0<\/string>/);
+  const version = plist.match(/CFBundleShortVersionString<\/key><string>([^<]+)<\/string>/)[1];
+  const connector = fs.readFileSync(path.join(root, 'mac/ReminderzConnector.swift'), 'utf8');
+  assert.ok(connector.includes(`private let connectorVersion = "${version}"`));
+  assert.match(connector, /"apiVersion": 1/);
 });
 
 test('release artwork and launcher icon are present', () => {

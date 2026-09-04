@@ -7,6 +7,8 @@ Select **Allow Reminders**. If macOS previously denied it, open System Settings 
 
 ## Mac service is not green
 
+Choose **Start Service** if stopped, or **Restart Service** to restart a running service.
+
 Only one Connector can use port `7843`. Quit older copies, move the current app to Applications, and
 open it again. If macOS asks for Keychain access after replacing an unsigned development build, use
 the signed release build instead.
@@ -30,6 +32,10 @@ Universal Clipboard is not required. Confirm both devices remain on the same tai
 
 Open the Pebble mobile app, confirm the watch is connected, and keep Tailscale connected on the
 iPhone. On the Mac, open Reminderz Connector and choose **Test Everything**. The Mac must be awake.
+
+An HTTP 502 usually means the private route cannot reach the Mac service. Open the Connector and
+choose **Start Service** or **Restart Service**. Install Connector 1.0.1 or later: version 1.0.0
+could crash when reopening a previously closed window. Closing the fixed window keeps sync running.
 
 ## A reminder or list is missing
 
