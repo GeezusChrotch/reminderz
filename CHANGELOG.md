@@ -1,5 +1,12 @@
 # Changelog
 
+## Watch 1.1.0
+
+- Make automatic refresh silent, including network failures; unchanged polls send no watch messages.
+- Show a retry message when an initial list load fails instead of an empty Add reminder screen.
+- Resend rows when opening a list and retry incomplete transfers on the next poll.
+- Keep compatibility with Connector 1.0.1.
+
 ## Connector 1.0.1
 
 - Fix a crash when reopening the Connector after closing its window.

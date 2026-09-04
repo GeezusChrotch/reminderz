@@ -116,7 +116,7 @@ function send(payload, done) {
     Pebble.sendAppMessage(payload, function() { if (done) done(); }, function() {
       attempts++;
       if (attempts < 4) setTimeout(attempt, attempts * 150);
-      else if (done) done();
+      else if (done) done(new Error("Watch transfer failed"));
     });
   }
   attempt();
@@ -124,7 +124,8 @@ function send(payload, done) {
 
 function sendSequence(messages, done) {
   var index = 0;
-  function next() {
+  function next(error) {
+    if (error) { if (done) done(error); return; }
     if (index >= messages.length) { if (done) done(); return; }
     send(messages[index++], next);
   }
@@ -169,24 +170,27 @@ function finishListsLoad() {
   }
 }
 
-function loadLists() {
+function loadLists(silent) {
   if (listsLoading) { listsRefreshPending = true; return; }
   listsLoading = true;
   api("GET", "/v1/lists", null, function(error, result) {
-    if (error) { sendError(error); finishListsLoad(); return; }
+    if (error) { if (!silent) sendError(error); finishListsLoad(); return; }
     lists = Array.isArray(result.lists) ? result.lists.slice(0, MAX_LISTS) : [];
     var signature = JSON.stringify(lists);
     if (signature === listsSignature) {
-      send({LIST_DONE:ITEM_KIND_LIST,ITEM_COUNT:lists.length}, finishListsLoad);
+      if (silent) finishListsLoad();
+      else send({LIST_DONE:ITEM_KIND_LIST,ITEM_COUNT:lists.length}, finishListsLoad);
       return;
     }
-    listsSignature = signature;
     var messages = lists.map(function(list, index) {
       return {ITEM_KIND:ITEM_KIND_LIST,ITEM_INDEX:index,ITEM_TITLE:String(list.title || "Untitled").slice(0,90),
         ITEM_COUNT:Number(list.incompleteCount || 0),ITEM_DONE:Number(list.completedCount || 0)};
     });
     messages.push({LIST_DONE:ITEM_KIND_LIST,ITEM_COUNT:lists.length});
-    sendSequence(messages, finishListsLoad);
+    sendSequence(messages, function(error) {
+      listsSignature = error ? null : signature;
+      finishListsLoad();
+    });
   });
 }
 
@@ -198,7 +202,7 @@ function finishRemindersLoad() {
   }
 }
 
-function loadReminders(listIndex) {
+function loadReminders(listIndex, silent) {
   if (typeof listIndex !== "number" || !lists[listIndex]) { sendError(new Error("Reload reminder lists")); return; }
   activeListIndex = listIndex;
   if (remindersLoading) { remindersRefreshPending = true; return; }
@@ -206,29 +210,33 @@ function loadReminders(listIndex) {
   var requestedListID = lists[listIndex].id;
   api("GET", "/v1/lists/" + encodeURIComponent(requestedListID) + "/reminders", null,
     function(error, result) {
-      if (error) { sendError(error); finishRemindersLoad(); return; }
+      if (error) { if (!silent) sendError(error); finishRemindersLoad(); return; }
       if (activeListIndex < 0 || !lists[activeListIndex] ||
           lists[activeListIndex].id !== requestedListID) { finishRemindersLoad(); return; }
       reminders = Array.isArray(result.reminders) ? result.reminders.slice(0, MAX_REMINDERS) : [];
       var signature = requestedListID + ":" + JSON.stringify(reminders);
       if (signature === remindersSignature) {
-        send({LIST_DONE:ITEM_KIND_REMINDER,ITEM_COUNT:reminders.length}, finishRemindersLoad);
+        if (silent) finishRemindersLoad();
+        else send({LIST_DONE:ITEM_KIND_REMINDER,ITEM_COUNT:reminders.length}, finishRemindersLoad);
         return;
       }
-      remindersSignature = signature;
       var messages = reminders.map(function(reminder, index) {
         return {ITEM_KIND:ITEM_KIND_REMINDER,ITEM_INDEX:index,
           ITEM_TITLE:String(reminder.title || "Untitled").slice(0,90),ITEM_DONE:reminder.completed ? 1 : 0};
       });
       messages.push({LIST_DONE:ITEM_KIND_REMINDER,ITEM_COUNT:reminders.length});
-      sendSequence(messages, finishRemindersLoad);
+      sendSequence(messages, function(error) {
+        remindersSignature = error ? null : signature;
+        finishRemindersLoad();
+      });
     });
 }
 
 function refreshVisibleScreen() {
   if (mutationInFlight) return;
-  if (activeListIndex >= 0 && lists[activeListIndex]) loadReminders(activeListIndex);
-  else loadLists();
+  if (listsLoading || remindersLoading) return;
+  if (activeListIndex >= 0 && lists[activeListIndex]) loadReminders(activeListIndex, true);
+  else loadLists(true);
 }
 
 function configureRefreshTimer(enabled) {
@@ -321,7 +329,10 @@ Pebble.addEventListener("ready", function() {
 Pebble.addEventListener("appmessage", function(event) {
   var payload = event.payload || {};
   if (payload.COMMAND === COMMAND_LOAD_LISTS) { activeListIndex = -1; loadLists(); }
-  else if (payload.COMMAND === COMMAND_LOAD_REMINDERS) loadReminders(payload.ITEM_INDEX);
+  else if (payload.COMMAND === COMMAND_LOAD_REMINDERS) {
+    remindersSignature = null;
+    loadReminders(payload.ITEM_INDEX);
+  }
   else if (payload.COMMAND === COMMAND_TOGGLE_REMINDER) toggleReminder(payload.ITEM_INDEX);
   else if (payload.COMMAND === COMMAND_CREATE_REMINDER) createReminder(payload.ITEM_INDEX, payload.VOICE_TEXT);
 });

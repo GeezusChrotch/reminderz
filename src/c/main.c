@@ -47,6 +47,7 @@ static uint16_t s_reminder_count;
 static uint16_t s_selected_list;
 static bool s_loading_lists = true;
 static bool s_loading_reminders;
+static bool s_reminders_error;
 static bool s_lists_has_appeared;
 static char s_status[64] = "Connecting to Mac…";
 static char s_dictation_text[MAX_DICTATION];
@@ -320,6 +321,7 @@ static void lists_row(GContext *ctx, const Layer *cell_layer, MenuIndex *cell_in
 static void load_selected_list(void) {
   s_reminder_count = 0;
   s_loading_reminders = true;
+  s_reminders_error = false;
   snprintf(s_status, sizeof(s_status), "Loading…");
   window_stack_push(s_reminders_window, true);
   send_command(COMMAND_LOAD_REMINDERS, s_selected_list, NULL);
@@ -338,7 +340,7 @@ static void lists_select(MenuLayer *menu_layer, MenuIndex *cell_index, void *con
 }
 
 static uint16_t reminders_rows(MenuLayer *menu_layer, uint16_t section_index, void *context) {
-  if (s_loading_reminders) return 1;
+  if (s_loading_reminders || (s_reminders_error && !s_reminder_count)) return 1;
   return s_reminder_count + 1;
 }
 
@@ -349,7 +351,9 @@ static void reminders_header(GContext *ctx, const Layer *cell_layer, uint16_t se
 
 static void reminders_row(GContext *ctx, const Layer *cell_layer, MenuIndex *cell_index,
                           void *context) {
-  if (s_loading_reminders) {
+  if (s_reminders_error && !s_reminder_count) {
+    draw_row(ctx, cell_layer, s_status, "Select to retry");
+  } else if (s_loading_reminders) {
     draw_row(ctx, cell_layer, s_status, NULL);
   } else if (cell_index->row == s_reminder_count) {
     draw_row(ctx, cell_layer, "+ Add reminder", "Dictate a new item");
@@ -371,6 +375,14 @@ static void dictation_callback(DictationSession *session, DictationSessionStatus
 
 static void reminders_select(MenuLayer *menu_layer, MenuIndex *cell_index, void *context) {
   if (s_loading_reminders) return;
+  if (s_reminders_error && !s_reminder_count) {
+    s_reminders_error = false;
+    s_loading_reminders = true;
+    snprintf(s_status, sizeof(s_status), "Loading…");
+    menu_layer_reload_data(s_reminders_menu);
+    send_command(COMMAND_LOAD_REMINDERS, s_selected_list, NULL);
+    return;
+  }
   if (cell_index->row == s_reminder_count) {
     if (!s_dictation) {
       snprintf(s_status, sizeof(s_status), "Dictation unavailable");
@@ -439,7 +451,7 @@ static void inbox_received(DictionaryIterator *iterator, void *context) {
     snprintf(s_status, sizeof(s_status), "%s", error->value->cstring);
     s_loading_lists = false;
     s_loading_reminders = false;
-    vibes_double_pulse();
+    s_reminders_error = true;
     if (s_lists_menu) menu_layer_reload_data(s_lists_menu);
     if (s_reminders_menu) menu_layer_reload_data(s_reminders_menu);
     return;
@@ -476,6 +488,7 @@ static void inbox_received(DictionaryIterator *iterator, void *context) {
     } else if (done->value->uint8 == ITEM_KIND_REMINDER) {
       if (final_count) s_reminder_count = (uint16_t)final_count->value->int32;
       s_loading_reminders = false;
+      s_reminders_error = false;
       snprintf(s_status, sizeof(s_status), "Up to date");
       menu_layer_reload_data(s_reminders_menu);
     }

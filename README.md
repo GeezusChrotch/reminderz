@@ -4,7 +4,7 @@ Reminderz puts Apple Reminders on Pebble Time and Pebble Time 2. Browse your rem
 open a list, press an item to complete it, or select **Add reminder** and dictate a new item.
 It is free and open-source software released under the [MIT License](LICENSE).
 
-This repository contains the public `1.0.0` release:
+This repository contains watch app `1.1.0` and Connector `1.0.1`:
 
 - native Pebble C menus for lists, open reminders, and completed reminders;
 - Pebble dictation for adding an item to the open list;
@@ -37,7 +37,7 @@ The Mac and iPhone must both be signed into Tailscale, and the Mac must be awake
 Connector running. Its window may be closed after setup; quitting the Connector stops sync.
 Connector 1.0.1 fixes reopening a closed window and adds **Stop Service**, **Start Service**, and
 **Restart Service** controls. These preserve pairing and the Tailscale route. It works with watch
-app 1.0.0; no watch update is needed.
+apps 1.0.0 and 1.1.0. Watch 1.1.0 makes automatic refresh silent and improves recovery from failed loads.
 
 ## Install
 
