@@ -1,0 +1,7 @@
+build/
+dist/
+.DS_Store
+.lock-waf_darwin_build
+*.pbw
+local/
+backups/
