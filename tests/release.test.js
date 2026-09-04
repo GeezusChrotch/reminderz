@@ -9,7 +9,7 @@ const plist = fs.readFileSync(path.join(root, 'mac/Info.plist'), 'utf8');
 const listing = fs.readFileSync(path.join(root, 'APPSTORE_LISTING.md'), 'utf8');
 
 test('Connector bundle and API versions match; watch remains compatible', () => {
-  assert.equal(pkg.version, '1.1.0');
+  assert.equal(pkg.version, '1.2.0');
   assert.equal(pkg.license, 'MIT');
   const version = plist.match(/CFBundleShortVersionString<\/key><string>([^<]+)<\/string>/)[1];
   const connector = fs.readFileSync(path.join(root, 'mac/ReminderzConnector.swift'), 'utf8');

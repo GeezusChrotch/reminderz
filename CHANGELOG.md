@@ -1,5 +1,13 @@
 # Changelog
 
+## Watch 1.2.0
+
+- Hold Select on a reminder list to pin or unpin it.
+- Support multiple pinned lists, with the newest pin first and a PIN label beside counts.
+- Save pins by list ID on the phone so they survive relaunches and list renames.
+- Keep the selection on a list when pinning moves it; unpinned lists return to normal order.
+- Preserve silent automatic refresh and compatibility with Connector 1.0.1.
+
 ## Watch 1.1.0
 
 - Make automatic refresh silent, including network failures; unchanged polls send no watch messages.

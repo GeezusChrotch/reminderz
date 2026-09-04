@@ -2,7 +2,7 @@
 
 ## Automated and packaged
 
-- [x] Watch `1.1.0` and Connector `1.0.1` use the same version 1 sync API.
+- [x] Watch `1.2.0` and Connector `1.0.1` use the same version 1 sync API.
 - [x] Node tests, Swift typecheck, Basalt build, and Emery build run through `npm run check`.
 - [x] No account, reminder, hostname, access token, or pairing code is embedded in the package.
 - [x] 25×25 launcher, 80×80 and 144×144 store icons, 512×512 master, Mac icon, and 720×320 banner exist.

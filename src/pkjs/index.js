@@ -3,12 +3,14 @@ var COMMAND_LOAD_LISTS = 1;
 var COMMAND_LOAD_REMINDERS = 2;
 var COMMAND_TOGGLE_REMINDER = 3;
 var COMMAND_CREATE_REMINDER = 4;
+var COMMAND_TOGGLE_PIN = 5;
 var ITEM_KIND_LIST = 1;
 var ITEM_KIND_REMINDER = 2;
 var MAX_LISTS = 30;
 var MAX_REMINDERS = 50;
 var REFRESH_INTERVAL_MS = 15000;
 var lists = [];
+var sourceLists = [];
 var reminders = [];
 var activeListIndex = -1;
 var refreshTimer = null;
@@ -170,27 +172,72 @@ function finishListsLoad() {
   }
 }
 
+function pinnedListIDs() {
+  try {
+    var saved = JSON.parse(localStorage.getItem("reminderzPinnedLists") || "[]");
+    if (Array.isArray(saved)) return saved.filter(function(id, index) {
+      return typeof id === "string" && id && saved.indexOf(id) === index;
+    }).slice(0, MAX_LISTS);
+  } catch (error) {}
+  return [];
+}
+
+function orderedLists(items, pins) {
+  var ordered = [];
+  pins.forEach(function(id) {
+    items.forEach(function(item) { if (item.id === id) ordered.push(item); });
+  });
+  items.forEach(function(item) { if (pins.indexOf(item.id) < 0) ordered.push(item); });
+  return ordered.slice(0, MAX_LISTS);
+}
+
+function sendLists(silent, focusID) {
+  var pins = pinnedListIDs();
+  var activeID = activeListIndex >= 0 && lists[activeListIndex] ? lists[activeListIndex].id : null;
+  lists = orderedLists(sourceLists, pins);
+  if (activeID) activeListIndex = lists.map(function(list) { return list.id; }).indexOf(activeID);
+  var signature = JSON.stringify([lists, pins]);
+  if (signature === listsSignature && !focusID) {
+    if (silent) finishListsLoad();
+    else send({LIST_DONE:ITEM_KIND_LIST,ITEM_COUNT:lists.length}, finishListsLoad);
+    return;
+  }
+  var messages = [{STATUS:1}];
+  lists.forEach(function(list, index) {
+    messages.push({ITEM_KIND:ITEM_KIND_LIST,ITEM_INDEX:index,ITEM_ID:list.id,
+      ITEM_PINNED:pins.indexOf(list.id) >= 0 ? 1 : 0,
+      ITEM_TITLE:String(list.title || "Untitled").slice(0,90),
+      ITEM_COUNT:Number(list.incompleteCount || 0),ITEM_DONE:Number(list.completedCount || 0)});
+  });
+  var complete = {LIST_DONE:ITEM_KIND_LIST,ITEM_COUNT:lists.length};
+  if (focusID) complete.ITEM_ID = focusID;
+  messages.push(complete);
+  sendSequence(messages, function(error) {
+    listsSignature = error ? null : signature;
+    if (error) sendError(error);
+    finishListsLoad();
+  });
+}
+
+function toggleListPin(id) {
+  if (listsLoading || activeListIndex >= 0) { sendError(new Error("List updating; try pinning again")); return; }
+  if (!lists.some(function(list) { return list.id === id; })) { sendError(new Error("Reload reminder lists")); return; }
+  var pins = pinnedListIDs(), index = pins.indexOf(id);
+  if (index < 0) pins.unshift(id);
+  else pins.splice(index, 1);
+  try { localStorage.setItem("reminderzPinnedLists", JSON.stringify(pins.slice(0, MAX_LISTS))); }
+  catch (error) { sendError(new Error("Could not save pinned lists")); return; }
+  listsLoading = true;
+  sendLists(false, id);
+}
+
 function loadLists(silent) {
   if (listsLoading) { listsRefreshPending = true; return; }
   listsLoading = true;
   api("GET", "/v1/lists", null, function(error, result) {
     if (error) { if (!silent) sendError(error); finishListsLoad(); return; }
-    lists = Array.isArray(result.lists) ? result.lists.slice(0, MAX_LISTS) : [];
-    var signature = JSON.stringify(lists);
-    if (signature === listsSignature) {
-      if (silent) finishListsLoad();
-      else send({LIST_DONE:ITEM_KIND_LIST,ITEM_COUNT:lists.length}, finishListsLoad);
-      return;
-    }
-    var messages = lists.map(function(list, index) {
-      return {ITEM_KIND:ITEM_KIND_LIST,ITEM_INDEX:index,ITEM_TITLE:String(list.title || "Untitled").slice(0,90),
-        ITEM_COUNT:Number(list.incompleteCount || 0),ITEM_DONE:Number(list.completedCount || 0)};
-    });
-    messages.push({LIST_DONE:ITEM_KIND_LIST,ITEM_COUNT:lists.length});
-    sendSequence(messages, function(error) {
-      listsSignature = error ? null : signature;
-      finishListsLoad();
-    });
+    sourceLists = Array.isArray(result.lists) ? result.lists : [];
+    sendLists(silent);
   });
 }
 
@@ -328,13 +375,15 @@ Pebble.addEventListener("ready", function() {
 });
 Pebble.addEventListener("appmessage", function(event) {
   var payload = event.payload || {};
+  var listIndex = payload.ITEM_ID ? lists.map(function(list) { return list.id; }).indexOf(payload.ITEM_ID) : payload.ITEM_INDEX;
   if (payload.COMMAND === COMMAND_LOAD_LISTS) { activeListIndex = -1; loadLists(); }
   else if (payload.COMMAND === COMMAND_LOAD_REMINDERS) {
     remindersSignature = null;
-    loadReminders(payload.ITEM_INDEX);
+    loadReminders(listIndex);
   }
   else if (payload.COMMAND === COMMAND_TOGGLE_REMINDER) toggleReminder(payload.ITEM_INDEX);
-  else if (payload.COMMAND === COMMAND_CREATE_REMINDER) createReminder(payload.ITEM_INDEX, payload.VOICE_TEXT);
+  else if (payload.COMMAND === COMMAND_CREATE_REMINDER) createReminder(listIndex, payload.VOICE_TEXT);
+  else if (payload.COMMAND === COMMAND_TOGGLE_PIN) toggleListPin(payload.ITEM_ID);
 });
 Pebble.addEventListener("showConfiguration", function() { Pebble.openURL(configurationURL()); });
 Pebble.addEventListener("webviewclosed", function(event) {

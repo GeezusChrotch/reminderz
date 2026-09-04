@@ -4,9 +4,10 @@ Reminderz puts Apple Reminders on Pebble Time and Pebble Time 2. Browse your rem
 open a list, press an item to complete it, or select **Add reminder** and dictate a new item.
 It is free and open-source software released under the [MIT License](LICENSE).
 
-This repository contains watch app `1.1.0` and Connector `1.0.1`:
+This repository contains watch app `1.2.0` and Connector `1.0.1`:
 
 - native Pebble C menus for lists, open reminders, and completed reminders;
+- long-press Select to pin or unpin multiple lists, with pins remembered on the phone;
 - Pebble dictation for adding an item to the open list;
 - a PebbleKit JS sync layer and phone Settings page;
 - the Pome theme presets, colors, fonts, and font sizes;

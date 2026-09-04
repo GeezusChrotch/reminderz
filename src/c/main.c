@@ -3,6 +3,7 @@
 #define MAX_LISTS 30
 #define MAX_REMINDERS 50
 #define MAX_TITLE 96
+#define MAX_LIST_ID 128
 #define MAX_DICTATION 192
 #define MARQUEE_STEP_PIXELS 2
 #define MARQUEE_FRAME_MS 80
@@ -12,7 +13,8 @@ enum {
   COMMAND_LOAD_LISTS = 1,
   COMMAND_LOAD_REMINDERS = 2,
   COMMAND_TOGGLE_REMINDER = 3,
-  COMMAND_CREATE_REMINDER = 4
+  COMMAND_CREATE_REMINDER = 4,
+  COMMAND_TOGGLE_PIN = 5
 };
 
 enum { ITEM_KIND_LIST = 1, ITEM_KIND_REMINDER = 2 };
@@ -27,6 +29,8 @@ enum {
 
 typedef struct {
   char title[MAX_TITLE];
+  char id[MAX_LIST_ID];
+  bool pinned;
   uint16_t open_count;
   uint16_t completed_count;
 } ReminderList;
@@ -49,6 +53,7 @@ static bool s_loading_lists = true;
 static bool s_loading_reminders;
 static bool s_reminders_error;
 static bool s_lists_has_appeared;
+static char s_list_focus_id[MAX_LIST_ID];
 static char s_status[64] = "Connecting to Mac…";
 static char s_dictation_text[MAX_DICTATION];
 static DictationSession *s_dictation;
@@ -69,19 +74,23 @@ static uint8_t s_custom_font_id = 255;
 static uint8_t s_custom_font_size;
 #endif
 
-static void send_command(uint8_t command, int32_t index, const char *voice_text) {
+static bool send_command(uint8_t command, int32_t index, const char *voice_text) {
   DictionaryIterator *iterator;
   AppMessageResult result = app_message_outbox_begin(&iterator);
   if (result != APP_MSG_OK || !iterator) {
     snprintf(s_status, sizeof(s_status), "Phone unavailable");
     vibes_double_pulse();
-    return;
+    return false;
   }
   dict_write_uint8(iterator, MESSAGE_KEY_COMMAND, command);
   if (index >= 0) dict_write_int32(iterator, MESSAGE_KEY_ITEM_INDEX, index);
+  if (index >= 0 && index < s_list_count &&
+      (command == COMMAND_LOAD_REMINDERS || command == COMMAND_CREATE_REMINDER || command == COMMAND_TOGGLE_PIN)) {
+    dict_write_cstring(iterator, MESSAGE_KEY_ITEM_ID, s_lists[index].id);
+  }
   if (voice_text) dict_write_cstring(iterator, MESSAGE_KEY_VOICE_TEXT, voice_text);
   dict_write_end(iterator);
-  app_message_outbox_send();
+  return app_message_outbox_send() == APP_MSG_OK;
 }
 
 #if defined(PBL_PLATFORM_EMERY)
@@ -311,10 +320,11 @@ static void lists_row(GContext *ctx, const Layer *cell_layer, MenuIndex *cell_in
     draw_row(ctx, cell_layer, s_loading_lists ? "Syncing…" : s_status, NULL);
     return;
   }
-  char subtitle[28];
+  char subtitle[40];
   uint16_t open = s_lists[cell_index->row].open_count;
   uint16_t done = s_lists[cell_index->row].completed_count;
-  snprintf(subtitle, sizeof(subtitle), "%u open · %u done", open, done);
+  snprintf(subtitle, sizeof(subtitle), "%s%u open · %u done",
+           s_lists[cell_index->row].pinned ? "PIN · " : "", open, done);
   draw_row(ctx, cell_layer, s_lists[cell_index->row].title, subtitle);
 }
 
@@ -328,6 +338,7 @@ static void load_selected_list(void) {
 }
 
 static void lists_select(MenuLayer *menu_layer, MenuIndex *cell_index, void *context) {
+  if (s_loading_lists) return;
   if (!s_list_count || cell_index->row >= s_list_count) {
     s_loading_lists = true;
     snprintf(s_status, sizeof(s_status), "Connecting to Mac…");
@@ -337,6 +348,14 @@ static void lists_select(MenuLayer *menu_layer, MenuIndex *cell_index, void *con
   }
   s_selected_list = cell_index->row;
   load_selected_list();
+}
+
+static void lists_long_select(MenuLayer *menu_layer, MenuIndex *cell_index, void *context) {
+  if (s_loading_lists || cell_index->row >= s_list_count) return;
+  if (send_command(COMMAND_TOGGLE_PIN, cell_index->row, NULL)) {
+    s_loading_lists = true;
+    vibes_short_pulse();
+  }
 }
 
 static uint16_t reminders_rows(MenuLayer *menu_layer, uint16_t section_index, void *context) {
@@ -446,6 +465,13 @@ static void receive_theme(DictionaryIterator *iterator) {
 
 static void inbox_received(DictionaryIterator *iterator, void *context) {
   receive_theme(iterator);
+  Tuple *status = dict_find(iterator, MESSAGE_KEY_STATUS);
+  if (status && status->value->int32 == 1) {
+    MenuIndex selected = menu_layer_get_selected_index(s_lists_menu);
+    snprintf(s_list_focus_id, sizeof(s_list_focus_id), "%s",
+             selected.row < s_list_count ? s_lists[selected.row].id : "");
+    s_loading_lists = true;
+  }
   Tuple *error = dict_find(iterator, MESSAGE_KEY_ERROR);
   if (error) {
     snprintf(s_status, sizeof(s_status), "%s", error->value->cstring);
@@ -463,6 +489,10 @@ static void inbox_received(DictionaryIterator *iterator, void *context) {
     uint8_t kind = kind_tuple->value->uint8;
     uint16_t index = (uint16_t)index_tuple->value->int32;
     if (kind == ITEM_KIND_LIST && index < MAX_LISTS) {
+      Tuple *id = dict_find(iterator, MESSAGE_KEY_ITEM_ID);
+      Tuple *pinned = dict_find(iterator, MESSAGE_KEY_ITEM_PINNED);
+      snprintf(s_lists[index].id, sizeof(s_lists[index].id), "%s", id ? id->value->cstring : "");
+      s_lists[index].pinned = pinned && pinned->value->int32 != 0;
       snprintf(s_lists[index].title, sizeof(s_lists[index].title), "%s", title_tuple->value->cstring);
       Tuple *count = dict_find(iterator, MESSAGE_KEY_ITEM_COUNT);
       Tuple *done = dict_find(iterator, MESSAGE_KEY_ITEM_DONE);
@@ -485,6 +515,15 @@ static void inbox_received(DictionaryIterator *iterator, void *context) {
       s_loading_lists = false;
       snprintf(s_status, sizeof(s_status), s_list_count ? "Up to date" : "No reminder lists");
       menu_layer_reload_data(s_lists_menu);
+      Tuple *focus = dict_find(iterator, MESSAGE_KEY_ITEM_ID);
+      const char *focus_id = focus ? focus->value->cstring : s_list_focus_id;
+      for (uint16_t row = 0; row < s_list_count; row++) {
+        if (focus_id[0] && strcmp(s_lists[row].id, focus_id) == 0) {
+          menu_layer_set_selected_index(s_lists_menu, (MenuIndex){.section=0,.row=row}, MenuRowAlignCenter, false);
+          break;
+        }
+      }
+      s_list_focus_id[0] = '\0';
     } else if (done->value->uint8 == ITEM_KIND_REMINDER) {
       if (final_count) s_reminder_count = (uint16_t)final_count->value->int32;
       s_loading_reminders = false;
@@ -528,6 +567,7 @@ static void lists_window_load(Window *window) {
     .draw_header = lists_header,
     .draw_row = lists_row,
     .select_click = lists_select,
+    .select_long_click = lists_long_select,
     .selection_changed = marquee_selection_changed
   });
   menu_layer_set_click_config_onto_window(s_lists_menu, window);
