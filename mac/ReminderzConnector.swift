@@ -8,7 +8,7 @@ import ServiceManagement
 
 private let localPort: NWEndpoint.Port = 7843
 private let servePort = "10447"
-private let connectorVersion = "1.0.1"
+private let connectorVersion = "1.1.0"
 
 private struct HTTPRequest {
     let method: String
@@ -196,6 +196,12 @@ private final class ReminderServer {
             DispatchQueue.main.async { self.listCalendars(completion) }; return
         }
         let components = path.split(separator: "/").map { String($0).removingPercentEncoding ?? String($0) }
+        if request.method == "POST", components.count == 4,
+           components[0] == "v1", components[1] == "reminders", components[3] == "delete" {
+            DispatchQueue.main.async {
+                self.deleteReminder(identifier: components[2], body: request.body, completion: completion)
+            }; return
+        }
         if request.method == "GET", components.count == 4,
            components[0] == "v1", components[1] == "lists", components[3] == "reminders" {
             DispatchQueue.main.async { self.listReminders(calendarID: components[2], completion: completion) }; return
@@ -302,6 +308,21 @@ private final class ReminderServer {
             try store.save(reminder, commit: true)
             completion(200, ["ok": true, "completed": completed])
         } catch { completion(500, ["error": "Apple Reminders could not update that item"] ) }
+    }
+
+    private func deleteReminder(identifier: String, body: Data,
+                                completion: @escaping (Int, [String: Any]) -> Void) {
+        guard let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+              object["confirmed"] as? Bool == true else {
+            completion(400, ["error": "Confirm deletion on your watch first"]); return
+        }
+        guard let reminder = store.calendarItem(withIdentifier: identifier) as? EKReminder else {
+            completion(404, ["error": "That reminder has already changed"]); return
+        }
+        do {
+            try store.remove(reminder, commit: true)
+            completion(200, ["ok": true])
+        } catch { completion(500, ["error": "Apple Reminders could not delete that item"]) }
     }
 
     private func respond(_ connection: NWConnection, status: Int, value: [String: Any]) {

@@ -1,8 +1,18 @@
 # Reminderz 1.0 release checklist
 
+## Watch 1.3.0 / Connector 1.1.0 verification
+
+- [x] All 22 automated tests pass; Swift typecheck and Basalt/Emery builds pass.
+- [x] Emulator: long Down opens confirmation with Cancel selected; Cancel sends no delete.
+- [x] Emulator: a refresh while confirmation is open cannot change the deletion target.
+- [x] Emulator: assigning delete to short Select still requires confirmation.
+- [x] Connector 1.1.0 notarized, installed locally, and authenticated local/private remote health verified.
+- [x] Live EventKit: unconfirmed deletion rejected; confirmed deletion removed only a disposable test reminder.
+- [ ] Physical watch: verify long Up dictation, long Down confirmation, and custom button mappings.
+
 ## Automated and packaged
 
-- [x] Watch `1.2.0` and Connector `1.0.1` use the same version 1 sync API.
+- [x] Watch `1.3.0` and Connector `1.1.0` use the same version 1 sync API; deletion requires Connector 1.1.0.
 - [x] Node tests, Swift typecheck, Basalt build, and Emery build run through `npm run check`.
 - [x] No account, reminder, hostname, access token, or pairing code is embedded in the package.
 - [x] 25×25 launcher, 80×80 and 144×144 store icons, 512×512 master, Mac icon, and 720×320 banner exist.

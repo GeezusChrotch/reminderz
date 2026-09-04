@@ -4,6 +4,7 @@ var COMMAND_LOAD_REMINDERS = 2;
 var COMMAND_TOGGLE_REMINDER = 3;
 var COMMAND_CREATE_REMINDER = 4;
 var COMMAND_TOGGLE_PIN = 5;
+var COMMAND_DELETE_REMINDER = 6;
 var ITEM_KIND_LIST = 1;
 var ITEM_KIND_REMINDER = 2;
 var MAX_LISTS = 30;
@@ -21,6 +22,31 @@ var remindersRefreshPending = false;
 var mutationInFlight = false;
 var listsSignature = null;
 var remindersSignature = null;
+var DEFAULT_BUTTONS = {lists:[1,5,3,4,2,0], reminders:[1,5,6,4,2,7]};
+var BUTTON_LABELS = ["No action", "Move up", "Move down", "Open list", "Pin / unpin list", "New reminder", "Check / uncheck", "Delete reminder (confirm)"];
+
+function normalizeButtons(value) {
+  var result = {};
+  ["lists", "reminders"].forEach(function(screen) {
+    var choices = screen === "lists" ? [0,1,2,3,4,5] : [0,1,2,4,5,6,7];
+    var saved = value && Array.isArray(value[screen]) ? value[screen] : [];
+    var actions = DEFAULT_BUTTONS[screen].map(function(fallback, index) {
+      return choices.indexOf(saved[index]) >= 0 ? saved[index] : fallback;
+    });
+    if (actions.indexOf(1) < 0 || actions.indexOf(2) < 0 ||
+        (screen === "lists" && actions.indexOf(3) < 0)) actions = DEFAULT_BUTTONS[screen].slice();
+    result[screen] = actions;
+  });
+  return result;
+}
+
+function configurationMessage(config) {
+  var message = themeMessage(config.theme), buttons = normalizeButtons(config.buttons);
+  function packed(values) { return values.reduce(function(total, action, index) { return total | (action << (index * 3)); }, 0); }
+  message.BUTTONS_LISTS = packed(buttons.lists);
+  message.BUTTONS_REMINDERS = packed(buttons.reminders);
+  return message;
+}
 
 var CLASSIC_THEMES = [
   {name:"Classic",text:"#000000",background:"#ffffff",selection:"#000000",font:"gothic",size:24},
@@ -79,7 +105,7 @@ function normalizeTheme(value) {
 }
 
 function savedConfig() {
-  var fallback = {gatewayURL:"", gatewayToken:"", autoRefresh:true, theme:normalizeTheme(null)};
+  var fallback = {gatewayURL:"", gatewayToken:"", autoRefresh:true, theme:normalizeTheme(null), buttons:normalizeButtons(null)};
   try {
     var parsed = JSON.parse(localStorage.getItem("reminderzConfig") || "null");
     if (!parsed) return fallback;
@@ -87,6 +113,7 @@ function savedConfig() {
       gatewayURL: typeof parsed.gatewayURL === "string" ? parsed.gatewayURL.replace(/\/+$/, "") : "",
       gatewayToken: typeof parsed.gatewayToken === "string" ? parsed.gatewayToken.trim() : "",
       autoRefresh: parsed.autoRefresh !== false,
+      buttons: normalizeButtons(parsed.buttons),
       theme: normalizeTheme(parsed.theme)
     };
   } catch (error) { return fallback; }
@@ -220,13 +247,18 @@ function sendLists(silent, focusID) {
 }
 
 function toggleListPin(id) {
-  if (listsLoading || activeListIndex >= 0) { sendError(new Error("List updating; try pinning again")); return; }
+  if (listsLoading) { sendError(new Error("List updating; try pinning again")); return; }
   if (!lists.some(function(list) { return list.id === id; })) { sendError(new Error("Reload reminder lists")); return; }
   var pins = pinnedListIDs(), index = pins.indexOf(id);
   if (index < 0) pins.unshift(id);
   else pins.splice(index, 1);
   try { localStorage.setItem("reminderzPinnedLists", JSON.stringify(pins.slice(0, MAX_LISTS))); }
   catch (error) { sendError(new Error("Could not save pinned lists")); return; }
+  if (activeListIndex >= 0) {
+    listsSignature = null;
+    send({STATUS:2, ITEM_ID:id, ITEM_PINNED:pins.indexOf(id) >= 0 ? 1 : 0});
+    return;
+  }
   listsLoading = true;
   sendLists(false, id);
 }
@@ -269,6 +301,7 @@ function loadReminders(listIndex, silent) {
       }
       var messages = reminders.map(function(reminder, index) {
         return {ITEM_KIND:ITEM_KIND_REMINDER,ITEM_INDEX:index,
+          ITEM_ID:reminder.id,
           ITEM_TITLE:String(reminder.title || "Untitled").slice(0,90),ITEM_DONE:reminder.completed ? 1 : 0};
       });
       messages.push({LIST_DONE:ITEM_KIND_REMINDER,ITEM_COUNT:reminders.length});
@@ -292,8 +325,9 @@ function configureRefreshTimer(enabled) {
   if (enabled) refreshTimer = setInterval(refreshVisibleScreen, REFRESH_INTERVAL_MS);
 }
 
-function toggleReminder(index) {
+function toggleReminder(index, id) {
   if (mutationInFlight) return;
+  if (id) index = reminders.map(function(item) { return item.id; }).indexOf(id);
   if (typeof index !== "number" || !reminders[index]) { sendError(new Error("Reload this list")); return; }
   mutationInFlight = true;
   api("POST", "/v1/reminders/" + encodeURIComponent(reminders[index].id) + "/completed",
@@ -303,6 +337,20 @@ function toggleReminder(index) {
       if (error) { sendError(error); return; }
       if (activeListIndex >= 0) loadReminders(activeListIndex);
     });
+}
+
+function deleteReminder(id, confirmed) {
+  if (confirmed !== true || mutationInFlight) return;
+  if (!id || !reminders.some(function(item) { return item.id === id; })) {
+    sendError(new Error("Reminder changed; reload this list")); return;
+  }
+  mutationInFlight = true;
+  api("POST", "/v1/reminders/" + encodeURIComponent(id) + "/delete", {confirmed:true}, function(error) {
+    mutationInFlight = false;
+    if (error) { sendError(error); return; }
+    remindersSignature = null;
+    if (activeListIndex >= 0) loadReminders(activeListIndex);
+  });
 }
 
 function createReminder(listIndex, title) {
@@ -329,6 +377,18 @@ function configurationURL() {
   var themes = isTime2() ? TIME2_THEMES : CLASSIC_THEMES;
   var fonts = isTime2() ? ["inter","roboto","open-sans","montserrat","poppins"] :
     ["gothic","gothic-bold","roboto-condensed","droid-serif","bitham-black"];
+  var buttonsHTML = '<div class="card"><h2>Button actions</h2><p class="hint">Configure short and long presses separately. Keep Move up and Move down on each screen, and Open list on the lists screen. Back always goes back. Delete always asks for confirmation.</p>';
+  ["lists", "reminders"].forEach(function(screen) {
+    buttonsHTML += '<h3>' + (screen === "lists" ? 'Lists screen' : 'Reminders screen') + '</h3>';
+    ["Up — short", "Up — long", "Select — short", "Select — long", "Down — short", "Down — long"].forEach(function(label, index) {
+      buttonsHTML += '<label>' + label + '</label><select id="button_' + screen + '_' + index + '">';
+      (screen === "lists" ? [0,1,2,3,4,5] : [0,1,2,4,5,6,7]).forEach(function(action) {
+        buttonsHTML += '<option value="' + action + '"' + (config.buttons[screen][index] === action ? ' selected' : '') + '>' + BUTTON_LABELS[action] + '</option>';
+      });
+      buttonsHTML += '</select>';
+    });
+  });
+  buttonsHTML += '<button type="button" class="secondary" onclick="resetButtons()">Reset button defaults</button><p id="buttonError" class="hint"></p></div>';
   var html = '<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<style>body{font:16px -apple-system,sans-serif;background:#f2f2f7;color:#111;margin:0;padding:18px}' +
     'h1{font-size:28px;margin:6px 0}h2{font-size:19px;margin-top:26px}.card{background:white;border-radius:13px;padding:16px;margin:12px 0}' +
@@ -345,20 +405,22 @@ function configurationURL() {
     '<div class="card"><h2>Sync</h2><label class="toggle"><input id="autoRefresh" type="checkbox"' +
     (config.autoRefresh ? ' checked' : '') + '> Auto-refresh every 15 seconds</label>' +
     '<p class="hint">Turn this off to minimize battery and network use. Opening screens and making changes still refresh immediately.</p></div>' +
-    '<div class="card"><h2>Theme</h2><label>Preset</label><select id="preset" onchange="choosePreset()">' +
+    buttonsHTML + '<div class="card"><h2>Theme</h2><label>Preset</label><select id="preset" onchange="choosePreset()">' +
     themes.map(function(t,i){return '<option value="'+i+'">'+escapeHTML(t.name)+'</option>';}).join('') + '</select>' +
     '<label>Text color</label><input id="text" type="color" value="'+config.theme.text+'"><label>Background color</label><input id="background" type="color" value="'+config.theme.background+'">' +
     '<label>Selection color</label><input id="selection" type="color" value="'+config.theme.selection+'"><label>Font</label><select id="font">' +
     fonts.map(function(f){return '<option'+(f===config.theme.font?' selected':'')+'>'+f+'</option>';}).join('') + '</select>' +
     '<label>Font size</label><select id="size"></select><div id="preview" class="preview"><div class="row selected">☐ Groceries</div><div class="row">☑ Pick up prescriptions</div></div></div>' +
     '<button onclick="save()">Save &amp; apply</button><p class="hint">Reminder data stays on your Apple devices and private tailnet.</p>' +
-    '<script>var themes='+JSON.stringify(themes).replace(/<\//g,'<\\/')+';var sizes='+JSON.stringify(THEME_SIZES)+';' +
+    '<script>var themes='+JSON.stringify(themes).replace(/<\//g,'<\\/')+';var sizes='+JSON.stringify(THEME_SIZES)+';var defaultButtons='+JSON.stringify(DEFAULT_BUTTONS)+';' +
+    'function resetButtons(){["lists","reminders"].forEach(function(s){defaultButtons[s].forEach(function(a,i){el("button_"+s+"_"+i).value=a})});el("buttonError").textContent=""}' +
+    'function readButtons(){var b={};["lists","reminders"].forEach(function(s){b[s]=[0,1,2,3,4,5].map(function(i){return Number(el("button_"+s+"_"+i).value)})});if(b.lists.indexOf(1)<0||b.lists.indexOf(2)<0||b.lists.indexOf(3)<0||b.reminders.indexOf(1)<0||b.reminders.indexOf(2)<0){el("buttonError").textContent="Keep Move up and Move down on both screens, and Open list on the lists screen.";el("buttonError").scrollIntoView();return null}return b}' +
     'function el(id){return document.getElementById(id)}function importBundle(){try{var b=JSON.parse(el("bundle").value.trim());el("url").value=b.gatewayURL||"";el("token").value=b.gatewayToken||"";el("status").textContent="Imported. Test, then save."}catch(e){el("status").textContent="That does not look like Connector pairing details."}}' +
     'function setSizes(wanted){var a=sizes[el("font").value]||[24],s=el("size");s.innerHTML="";for(var i=0;i<a.length;i++){var o=document.createElement("option");o.value=a[i];o.textContent=a[i]+" px";if(a[i]===Number(wanted))o.selected=true;s.appendChild(o)}preview()}' +
     'function choosePreset(){var t=themes[Number(el("preset").value)];el("text").value=t.text;el("background").value=t.background;el("selection").value=t.selection;el("font").value=t.font;setSizes(t.size)}' +
     'function preview(){var p=el("preview");p.style.color=el("text").value;p.style.background=el("background").value;p.style.fontSize=el("size").value+"px";p.querySelector(".selected").style.background=el("selection").value}' +
     'function testConnection(){var x=new XMLHttpRequest(),u=el("url").value.replace(/\\\/$/,"");el("status").textContent="Testing…";x.open("GET",u+"/v1/health");x.setRequestHeader("Authorization","Bearer "+el("token").value);x.onload=function(){var r={};try{r=JSON.parse(x.responseText||"{}")}catch(e){}el("status").textContent=x.status===200&&r.apiVersion===1?"Connected through Tailscale.":x.status===200?"Update the watch app and Connector together.":"Connector rejected these details."};x.onerror=function(){el("status").textContent="Could not reach the Connector. Check Tailscale on Mac and iPhone."};x.send()}' +
-    'function save(){var t={name:"Custom",text:el("text").value,background:el("background").value,selection:el("selection").value,font:el("font").value,size:Number(el("size").value)};var c={gatewayURL:el("url").value.replace(/\\\/$/,""),gatewayToken:el("token").value.trim(),autoRefresh:el("autoRefresh").checked,theme:t};location.href="pebblejs://close#"+encodeURIComponent(JSON.stringify(c))}' +
+    'function save(){var b=readButtons();if(!b)return;var t={name:"Custom",text:el("text").value,background:el("background").value,selection:el("selection").value,font:el("font").value,size:Number(el("size").value)};var c={gatewayURL:el("url").value.replace(/\\\/$/,""),gatewayToken:el("token").value.trim(),autoRefresh:el("autoRefresh").checked,theme:t,buttons:b};location.href="pebblejs://close#"+encodeURIComponent(JSON.stringify(c))}' +
     '["text","background","selection","size"].forEach(function(id){el(id).onchange=preview});el("font").onchange=function(){setSizes()};setSizes('+config.theme.size+');preview();</script>';
   return "data:text/html;charset=utf-8," + encodeURIComponent(html);
 }
@@ -368,7 +430,7 @@ Pebble.addEventListener("ready", function() {
   activeListIndex = -1;
   listsSignature = null;
   remindersSignature = null;
-  send(themeMessage(config.theme), function() {
+  send(configurationMessage(config), function() {
     loadLists();
     configureRefreshTimer(config.autoRefresh);
   });
@@ -381,9 +443,10 @@ Pebble.addEventListener("appmessage", function(event) {
     remindersSignature = null;
     loadReminders(listIndex);
   }
-  else if (payload.COMMAND === COMMAND_TOGGLE_REMINDER) toggleReminder(payload.ITEM_INDEX);
+  else if (payload.COMMAND === COMMAND_TOGGLE_REMINDER) toggleReminder(payload.ITEM_INDEX, payload.ITEM_ID);
   else if (payload.COMMAND === COMMAND_CREATE_REMINDER) createReminder(listIndex, payload.VOICE_TEXT);
   else if (payload.COMMAND === COMMAND_TOGGLE_PIN) toggleListPin(payload.ITEM_ID);
+  else if (payload.COMMAND === COMMAND_DELETE_REMINDER) deleteReminder(payload.ITEM_ID, payload.CONFIRMED === 1);
 });
 Pebble.addEventListener("showConfiguration", function() { Pebble.openURL(configurationURL()); });
 Pebble.addEventListener("webviewclosed", function(event) {
@@ -394,10 +457,11 @@ Pebble.addEventListener("webviewclosed", function(event) {
     config.gatewayURL = String(config.gatewayURL || "").replace(/\/+$/, "");
     config.gatewayToken = String(config.gatewayToken || "").trim();
     config.autoRefresh = config.autoRefresh !== false;
+    config.buttons = normalizeButtons(config.buttons);
     localStorage.setItem("reminderzConfig", JSON.stringify(config));
     activeListIndex = -1;
     configureRefreshTimer(config.autoRefresh);
-    send(themeMessage(config.theme), loadLists);
+    send(configurationMessage(config), loadLists);
   } catch (error) { sendError(new Error("Could not save settings")); }
 });
 
@@ -406,4 +470,5 @@ if (typeof module !== "undefined") module.exports = {
   themeMessage: themeMessage, configurationURL: configurationURL,
   classicThemes: CLASSIC_THEMES, time2Themes: TIME2_THEMES,
   refreshIntervalMs: REFRESH_INTERVAL_MS
+  ,normalizeButtons: normalizeButtons, configurationMessage: configurationMessage
 };

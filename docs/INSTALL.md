@@ -9,7 +9,7 @@ the same private tailnet on both devices. The Mac must be awake whenever the wat
 4. Select **Allow Reminders** and approve macOS full Reminders access.
 5. Select **Start Private Sync**. This adds HTTPS port `10447` to Tailscale Serve.
 6. Optionally select **Start at Login** so sync returns after Mac restarts.
-7. Install `reminderz-1.2.0.pbw` through the Pebble mobile app, or install Reminderz from the Appstore.
+7. Install `reminderz-1.3.0.pbw` through the Pebble mobile app, or install Reminderz from the Appstore.
 8. In the Connector, select **Connect Phone**.
 9. Scan the one-time QR code with the iPhone camera. On the private page, select **Copy pairing
    details**. This copies directly on the iPhone; Universal Clipboard is not needed.
@@ -21,6 +21,16 @@ Hold the middle **Select** button on a list to pin it at the top. You can pin mu
 most recently pinned comes first and pinned lists show **PIN** beside their counts. Hold Select
 again to unpin. Pins stay saved on your phone across app restarts and list renames, and do not
 change the order in Apple Reminders.
+
+By default, hold **Up** to dictate a new reminder in the selected/open list. Hold **Down** on a
+reminder to delete it. The confirmation shows its title and starts on **Cancel**; choose **Delete**
+to remove it from Apple Reminders. Deletion requires Connector **1.1.0** or later.
+
+In Pebble → Reminderz → Settings → **Button actions**, customize short and long presses for Up,
+Select, and Down separately for the lists screen and reminders screen. Choose navigation,
+pin/unpin, new reminder, check/uncheck, or confirmed delete where applicable. Settings retain a
+way to move both up and down and open lists. Back always goes back, and deletion always asks first,
+even when assigned to a short press. **Reset button defaults** restores the original controls.
 
 The QR code contains only a short-lived pairing address. It expires after 10 minutes and works once;
 the permanent Connector token is delivered only after the iPhone reaches that private page through

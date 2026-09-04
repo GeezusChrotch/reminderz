@@ -1,5 +1,14 @@
 # Changelog
 
+## Watch 1.3.0 and Connector 1.1.0
+
+- Hold Up to dictate a new reminder; hold Down on a reminder to delete with confirmation.
+- Customize short and long presses for all three buttons separately on lists and reminders screens.
+- Keep navigation accessible, preserve Back, and always default deletion confirmation to Cancel.
+- Target edits by stable reminder ID so refreshes cannot change the item being deleted.
+- Pin or unpin the current list from inside it; preserve silent automatic refresh.
+- Add the authenticated, confirmation-required Connector deletion endpoint.
+
 ## Watch 1.2.0
 
 - Hold Select on a reminder list to pin or unpin it.

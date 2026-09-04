@@ -8,7 +8,8 @@ code can be inspected and built from the public repository.
 
 The Mac Connector requests full Apple Reminders access because Apple requires full access to read
 lists and items. It uses that access only to show the user's open and completed reminders, create
-items the user dictates, and change the completion state of items the user selects.
+items the user dictates, change the completion state of items the user selects, and delete items
+only after the user confirms deletion.
 
 Reminder titles pass from the user's Mac to the paired iPhone and watch over the user's private
 Tailscale network. The Connector API is loopback-only behind Tailscale Serve and requires a random
@@ -27,10 +28,10 @@ new reminder title.
 - Apple Reminders remains the system of record; Reminderz does not create a separate reminder
   database.
 - The Mac stores one random Connector token in Keychain.
-- The Pebble mobile app stores the private Connector address, token, and selected theme in its local
+- The Pebble mobile app stores the private Connector address, token, theme, button mappings, and pinned list IDs in its local
   per-app storage.
 - The watch keeps only the currently transferred list titles, reminder titles, completion states,
-  counts, and theme settings. It does not keep a historical archive.
+  counts, theme settings, and button mappings. It does not keep a historical archive.
 
 ## Network and third parties
 

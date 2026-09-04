@@ -14,7 +14,8 @@ enum {
   COMMAND_LOAD_REMINDERS = 2,
   COMMAND_TOGGLE_REMINDER = 3,
   COMMAND_CREATE_REMINDER = 4,
-  COMMAND_TOGGLE_PIN = 5
+  COMMAND_TOGGLE_PIN = 5,
+  COMMAND_DELETE_REMINDER = 6
 };
 
 enum { ITEM_KIND_LIST = 1, ITEM_KIND_REMINDER = 2 };
@@ -37,6 +38,7 @@ typedef struct {
 
 typedef struct {
   char title[MAX_TITLE];
+  char id[MAX_LIST_ID];
   bool completed;
 } ReminderItem;
 
@@ -44,6 +46,12 @@ static Window *s_lists_window;
 static Window *s_reminders_window;
 static MenuLayer *s_lists_menu;
 static MenuLayer *s_reminders_menu;
+static Window *s_delete_window;
+static MenuLayer *s_delete_menu;
+static char s_delete_id[MAX_LIST_ID];
+static char s_delete_title[MAX_TITLE];
+static uint32_t s_buttons_lists = 1 | (5 << 3) | (3 << 6) | (4 << 9) | (2 << 12);
+static uint32_t s_buttons_reminders = 1 | (5 << 3) | (6 << 6) | (4 << 9) | (2 << 12) | (7 << 15);
 static ReminderList s_lists[MAX_LISTS];
 static ReminderItem s_reminders[MAX_REMINDERS];
 static uint16_t s_list_count;
@@ -84,6 +92,8 @@ static bool send_command(uint8_t command, int32_t index, const char *voice_text)
   }
   dict_write_uint8(iterator, MESSAGE_KEY_COMMAND, command);
   if (index >= 0) dict_write_int32(iterator, MESSAGE_KEY_ITEM_INDEX, index);
+  if (command == COMMAND_TOGGLE_REMINDER && index >= 0 && index < s_reminder_count)
+    dict_write_cstring(iterator, MESSAGE_KEY_ITEM_ID, s_reminders[index].id);
   if (index >= 0 && index < s_list_count &&
       (command == COMMAND_LOAD_REMINDERS || command == COMMAND_CREATE_REMINDER || command == COMMAND_TOGGLE_PIN)) {
     dict_write_cstring(iterator, MESSAGE_KEY_ITEM_ID, s_lists[index].id);
@@ -420,6 +430,95 @@ static void reminders_select(MenuLayer *menu_layer, MenuIndex *cell_index, void 
   send_command(COMMAND_TOGGLE_REMINDER, toggled, NULL);
 }
 
+static uint16_t delete_rows(MenuLayer *menu, uint16_t section, void *context) { return 2; }
+static int16_t delete_header_height(MenuLayer *menu, uint16_t section, void *context) { return 86; }
+static int16_t delete_row_height(MenuLayer *menu, MenuIndex *index, void *context) { return 32; }
+static void delete_header(GContext *ctx, const Layer *layer, uint16_t section, void *context) {
+  GRect bounds = layer_get_bounds(layer);
+  graphics_context_set_text_color(ctx, s_theme_text);
+  graphics_draw_text(ctx, "Delete reminder?", fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
+                     GRect(5, 0, bounds.size.w-10, 25), GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
+  graphics_draw_text(ctx, s_delete_title, fonts_get_system_font(FONT_KEY_GOTHIC_14),
+                     GRect(5, 26, bounds.size.w-10, 58), GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
+}
+static void delete_row(GContext *ctx, const Layer *layer, MenuIndex *index, void *context) {
+  menu_cell_basic_draw(ctx, layer, index->row ? "Delete" : "Cancel", NULL, NULL);
+}
+static void delete_select(MenuLayer *menu, MenuIndex *index, void *context) {
+  if (index->row == 1 && s_delete_id[0]) {
+    DictionaryIterator *iterator;
+    if (app_message_outbox_begin(&iterator) != APP_MSG_OK || !iterator) return;
+    dict_write_uint8(iterator, MESSAGE_KEY_COMMAND, COMMAND_DELETE_REMINDER);
+    dict_write_cstring(iterator, MESSAGE_KEY_ITEM_ID, s_delete_id);
+    dict_write_uint8(iterator, MESSAGE_KEY_CONFIRMED, 1);
+    dict_write_end(iterator);
+    if (app_message_outbox_send() != APP_MSG_OK) return;
+    s_loading_reminders = true;
+    snprintf(s_status, sizeof(s_status), "Deleting…");
+    menu_layer_reload_data(s_reminders_menu);
+  }
+  s_delete_id[0] = '\0';
+  window_stack_pop(true);
+}
+static void delete_window_load(Window *window) {
+  Layer *root = window_get_root_layer(window);
+  s_delete_menu = menu_layer_create(layer_get_bounds(root));
+  menu_layer_set_callbacks(s_delete_menu, NULL, (MenuLayerCallbacks){
+    .get_num_sections=one_section, .get_num_rows=delete_rows,
+    .get_header_height=delete_header_height, .get_cell_height=delete_row_height,
+    .draw_header=delete_header, .draw_row=delete_row, .select_click=delete_select
+  });
+  menu_layer_set_normal_colors(s_delete_menu, s_theme_background, s_theme_text);
+  menu_layer_set_highlight_colors(s_delete_menu, s_theme_selection, s_theme_selection_text);
+  menu_layer_set_click_config_onto_window(s_delete_menu, window);
+  layer_add_child(root, menu_layer_get_layer(s_delete_menu));
+}
+static void delete_window_unload(Window *window) {
+  menu_layer_destroy(s_delete_menu); s_delete_menu = NULL; s_delete_id[0] = '\0';
+}
+
+static void button_action(MenuLayer *menu, uint8_t action) {
+  bool lists_screen = menu == s_lists_menu;
+  MenuIndex index = menu_layer_get_selected_index(menu);
+  if (action == 1 || action == 2) {
+    menu_layer_set_selected_next(menu, action == 1, MenuRowAlignCenter, true); return;
+  }
+  if ((lists_screen && s_loading_lists) || (!lists_screen && s_loading_reminders)) return;
+  if (action == 3 && lists_screen) { lists_select(menu, &index, NULL); return; }
+  if (action == 6 && !lists_screen) { reminders_select(menu, &index, NULL); return; }
+  if (action == 4) {
+    if (lists_screen) lists_long_select(menu, &index, NULL);
+    else if (s_selected_list < s_list_count) send_command(COMMAND_TOGGLE_PIN, s_selected_list, NULL);
+  } else if (action == 5) {
+    if (!s_dictation || !s_list_count) return;
+    if (lists_screen) {
+      if (index.row >= s_list_count) return;
+      s_selected_list = index.row;
+      load_selected_list();
+    }
+    dictation_session_start(s_dictation);
+  } else if (action == 7 && !lists_screen && index.row < s_reminder_count) {
+    snprintf(s_delete_id, sizeof(s_delete_id), "%s", s_reminders[index.row].id);
+    snprintf(s_delete_title, sizeof(s_delete_title), "%s", s_reminders[index.row].title);
+    window_stack_push(s_delete_window, true);
+    menu_layer_set_selected_index(s_delete_menu, (MenuIndex){.section=0,.row=0}, MenuRowAlignTop, false);
+  }
+}
+static void handle_button(ClickRecognizerRef recognizer, void *context, bool long_press) {
+  ButtonId button = click_recognizer_get_button_id(recognizer);
+  uint8_t index = (button == BUTTON_ID_UP ? 0 : button == BUTTON_ID_SELECT ? 2 : 4) + (long_press ? 1 : 0);
+  uint32_t actions = context == s_lists_menu ? s_buttons_lists : s_buttons_reminders;
+  button_action((MenuLayer *)context, (actions >> (index * 3)) & 7);
+}
+static void short_button(ClickRecognizerRef recognizer, void *context) { handle_button(recognizer, context, false); }
+static void long_button(ClickRecognizerRef recognizer, void *context) { handle_button(recognizer, context, true); }
+static void button_config(void *context) {
+  for (ButtonId button = BUTTON_ID_UP; button <= BUTTON_ID_DOWN; button++) {
+    window_single_click_subscribe(button, short_button);
+    window_long_click_subscribe(button, 600, long_button, NULL);
+  }
+}
+
 static void apply_theme(void) {
   Window *windows[] = {s_lists_window, s_reminders_window};
   MenuLayer *menus[] = {s_lists_menu, s_reminders_menu};
@@ -465,7 +564,16 @@ static void receive_theme(DictionaryIterator *iterator) {
 
 static void inbox_received(DictionaryIterator *iterator, void *context) {
   receive_theme(iterator);
+  Tuple *buttons = dict_find(iterator, MESSAGE_KEY_BUTTONS_LISTS);
+  if (buttons) { s_buttons_lists = buttons->value->uint32; persist_write_int(30, s_buttons_lists); }
+  buttons = dict_find(iterator, MESSAGE_KEY_BUTTONS_REMINDERS);
+  if (buttons) { s_buttons_reminders = buttons->value->uint32; persist_write_int(31, s_buttons_reminders); }
   Tuple *status = dict_find(iterator, MESSAGE_KEY_STATUS);
+  if (status && status->value->int32 == 2) {
+    Tuple *id = dict_find(iterator, MESSAGE_KEY_ITEM_ID), *pin = dict_find(iterator, MESSAGE_KEY_ITEM_PINNED);
+    for (uint16_t row = 0; id && pin && row < s_list_count; row++)
+      if (strcmp(s_lists[row].id, id->value->cstring) == 0) s_lists[row].pinned = pin->value->int32 != 0;
+  }
   if (status && status->value->int32 == 1) {
     MenuIndex selected = menu_layer_get_selected_index(s_lists_menu);
     snprintf(s_list_focus_id, sizeof(s_list_focus_id), "%s",
@@ -500,6 +608,8 @@ static void inbox_received(DictionaryIterator *iterator, void *context) {
       s_lists[index].completed_count = done ? (uint16_t)done->value->int32 : 0;
       if (index >= s_list_count) s_list_count = index + 1;
     } else if (kind == ITEM_KIND_REMINDER && index < MAX_REMINDERS) {
+      Tuple *id = dict_find(iterator, MESSAGE_KEY_ITEM_ID);
+      snprintf(s_reminders[index].id, sizeof(s_reminders[index].id), "%s", id ? id->value->cstring : "");
       snprintf(s_reminders[index].title, sizeof(s_reminders[index].title), "%s",
                title_tuple->value->cstring);
       Tuple *done = dict_find(iterator, MESSAGE_KEY_ITEM_DONE);
@@ -570,7 +680,7 @@ static void lists_window_load(Window *window) {
     .select_long_click = lists_long_select,
     .selection_changed = marquee_selection_changed
   });
-  menu_layer_set_click_config_onto_window(s_lists_menu, window);
+  window_set_click_config_provider_with_context(window, button_config, s_lists_menu);
   layer_add_child(root, menu_layer_get_layer(s_lists_menu));
   apply_theme();
 }
@@ -588,7 +698,7 @@ static void reminders_window_load(Window *window) {
     .select_click = reminders_select,
     .selection_changed = marquee_selection_changed
   });
-  menu_layer_set_click_config_onto_window(s_reminders_menu, window);
+  window_set_click_config_provider_with_context(window, button_config, s_reminders_menu);
   layer_add_child(root, menu_layer_get_layer(s_reminders_menu));
   apply_theme();
 }
@@ -605,8 +715,12 @@ static void reminders_window_unload(Window *window) {
 
 static void init(void) {
   load_saved_theme();
+  if (persist_exists(30)) s_buttons_lists = persist_read_int(30);
+  if (persist_exists(31)) s_buttons_reminders = persist_read_int(31);
   s_lists_window = window_create();
   s_reminders_window = window_create();
+  s_delete_window = window_create();
+  window_set_window_handlers(s_delete_window, (WindowHandlers){.load=delete_window_load, .unload=delete_window_unload});
   window_set_window_handlers(s_lists_window, (WindowHandlers) {
     .load = lists_window_load, .appear = lists_window_appear, .unload = lists_window_unload
   });
@@ -631,6 +745,7 @@ static void deinit(void) {
   unload_custom_font();
 #endif
   window_destroy(s_reminders_window);
+  window_destroy(s_delete_window);
   window_destroy(s_lists_window);
 }
 

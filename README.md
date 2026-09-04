@@ -4,11 +4,12 @@ Reminderz puts Apple Reminders on Pebble Time and Pebble Time 2. Browse your rem
 open a list, press an item to complete it, or select **Add reminder** and dictate a new item.
 It is free and open-source software released under the [MIT License](LICENSE).
 
-This repository contains watch app `1.2.0` and Connector `1.0.1`:
+This repository contains watch app `1.3.0` and Connector `1.1.0`:
 
 - native Pebble C menus for lists, open reminders, and completed reminders;
 - long-press Select to pin or unpin multiple lists, with pins remembered on the phone;
 - Pebble dictation for adding an item to the open list;
+- customizable short/long button actions and deletion with confirmation;
 - a PebbleKit JS sync layer and phone Settings page;
 - the Pome theme presets, colors, fonts, and font sizes;
 - a token-protected macOS EventKit connector;
@@ -38,7 +39,8 @@ The Mac and iPhone must both be signed into Tailscale, and the Mac must be awake
 Connector running. Its window may be closed after setup; quitting the Connector stops sync.
 Connector 1.0.1 fixes reopening a closed window and adds **Stop Service**, **Start Service**, and
 **Restart Service** controls. These preserve pairing and the Tailscale route. It works with watch
-apps 1.0.0 and 1.1.0. Watch 1.1.0 makes automatic refresh silent and improves recovery from failed loads.
+apps from earlier releases. Connector 1.1.0 adds confirmed deletion for watch 1.3.0.
+Automatic refresh remains silent.
 
 ## Install
 
@@ -85,8 +87,8 @@ page has a **Copy pairing details** button, so Universal Clipboard is not requir
 
 ## Current product boundary
 
-Version 1.0 supports open and completed reminders, toggling either state, and creating plain-title
-reminders. Due-date display, notes, subtasks, tags, images, shared-list metadata, and offline mutation
+Reminderz supports open and completed reminders, toggling either state, creating plain-title
+reminders, and deleting reminders after confirmation. Due-date display, notes, subtasks, tags, images, shared-list metadata, and offline mutation
 queues are intentionally deferred. Up to 30 lists and the first 50 reminders in each sorted list are
 shown on the watch. The Connector can start at login so away-from-home sync remains available while
 the Mac is awake.
