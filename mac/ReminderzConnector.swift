@@ -8,7 +8,7 @@ import ServiceManagement
 
 private let localPort: NWEndpoint.Port = 7843
 private let servePort = "10447"
-private let connectorVersion = "1.1.0"
+private let connectorVersion = "1.1.1"
 
 private struct HTTPRequest {
     let method: String
@@ -367,6 +367,10 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     private var restartButton: NSButton!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+           let icon = NSImage(contentsOf: iconURL) {
+            NSApplication.shared.applicationIconImage = icon
+        }
         NSApp.setActivationPolicy(.regular)
         ProcessInfo.processInfo.disableAutomaticTermination("Reminderz keeps syncing with its window closed")
         buildWindow()

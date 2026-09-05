@@ -34,6 +34,13 @@ test('release artwork and launcher icon are present', () => {
   assert.equal(menu.file, 'images/reminderz-menu-icon.png');
 });
 
+test('Connector assigns its bundled icon at startup', () => {
+  const connector = fs.readFileSync(path.join(root, 'mac/ReminderzConnector.swift'), 'utf8');
+  assert.match(connector, /Bundle\.main\.url\(forResource: "AppIcon", withExtension: "icns"\)/);
+  assert.match(connector, /NSApplication\.shared\.applicationIconImage = icon/);
+  assert.match(plist, /CFBundleIconFile<\/key><string>AppIcon<\/string>/);
+});
+
 test('public release documents exist', () => {
   for (const file of ['LICENSE', 'CHANGELOG.md', 'SECURITY.md', 'SUPPORT.md',
     'RELEASE_CHECKLIST.md', 'PRIVACY.md', 'APPSTORE_LISTING.md']) {

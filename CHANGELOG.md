@@ -1,5 +1,9 @@
 # Changelog
 
+## Connector 1.1.1
+
+- Explicitly load the bundled Reminderz artwork at startup to fix a blank running-app/Dock icon.
+
 ## Watch 1.3.0 and Connector 1.1.0
 
 - Hold Up to dictate a new reminder; hold Down on a reminder to delete with confirmation.
