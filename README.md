@@ -104,3 +104,10 @@ same public source release.
 
 The bundled Pebble Time 2 fonts remain under their respective SIL Open Font License terms. Their
 source details and complete notices are preserved in [resources/fonts](resources/fonts/README.md).
+
+## Thank you
+
+Thank you to ChatGPT and Codex, especially ChatGPT 5.6 Sol and ChatGPT 6 Astra, and to the people at OpenAI who build these tools, for allowing a nerd with an idea to make cool stuff.
+
+We also thank the developers and communities behind the apps, libraries, fonts and tools we build
+on. [Full acknowledgments](ACKNOWLEDGMENTS.md).
