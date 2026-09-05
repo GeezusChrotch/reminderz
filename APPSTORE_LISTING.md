@@ -1,10 +1,14 @@
 # Reminderz — Rebble Appstore listing
 
+Coordinated release update: recommend **Organik Apps Pebble Connector** for Mac setup.
+Download: https://github.com/GeezusChrotch/organik-pebble-connector/releases/latest
+Existing users: [migration guide](docs/UNIFIED_CONNECTOR.md). Publish this link only after the connector release.
+
 ## Basic details
 
 - Title: Reminderz
 - Category: Tools & Utilities
-- Version: 1.0.0
+- Version: 1.3.0
 - Price: Free
 - License: MIT open source
 - Platforms: Pebble Time (`basalt`) and Pebble Time 2 (`emery`)
@@ -38,7 +42,7 @@ Privacy first: no Reminderz account, hosted cloud, advertising, analytics, Funne
 forwarding. The API stays on the Mac's loopback interface, requires a random Keychain-backed token,
 and is reachable only through your tailnet.
 
-Requires macOS 14+, Tailscale on Mac and iPhone, and the free Reminderz Connector. Dictation requires
+Requires macOS 14+, Tailscale on Mac and iPhone, and the free Organik Apps Pebble Connector. Dictation requires
 a working Pebble dictation service. Shows up to 30 lists and 50 sorted reminders per list.
 
 Free and open source under the MIT License. Independent and not affiliated with Apple, Tailscale,
@@ -46,7 +50,8 @@ Pebble, or Rebble.
 
 ## Short release notes
 
-First public release: Apple Reminders lists, open/completed checkboxes, complete and reopen actions,
+Coordinated connector release: migrate existing pairing to Organik Apps Pebble Connector.
+Watch features include Apple Reminders lists, open/completed checkboxes, complete and reopen actions,
 dictation, long-title marquee, optional 15-second refresh, Pome-style themes, private remote
 Tailscale sync, and QR setup.
 

@@ -1,5 +1,10 @@
 # Reminderz
 
+Use **Organik Apps Pebble Connector** for the coordinated Mac release: one free MIT app for
+Notesy, Beepster, Reminderz and Pome. [Setup and migration](docs/UNIFIED_CONNECTOR.md).
+Existing Reminderz watch pairing is retained. Standalone connector details below describe the older
+implementation and remain useful for source builds or rollback.
+
 Reminderz puts Apple Reminders on Pebble Time and Pebble Time 2. Browse your reminder lists,
 open a list, press an item to complete it, or select **Add reminder** and dictate a new item.
 It is free and open-source software released under the [MIT License](LICENSE).
@@ -44,15 +49,10 @@ Automatic refresh remains silent.
 
 ## Install
 
-Reminderz needs three pieces: this watch app, the free Reminderz Connector on a Mac, and Tailscale
-on that Mac and the paired iPhone. Install the watch app from the
-[Pebble Appstore](https://apps.repebble.com/d7f2ccd94a0746d1a059433a), then download the Connector
-`.dmg` from the [latest GitHub release](https://github.com/GeezusChrotch/reminderz/releases/latest).
-Drag the Connector to Applications and follow its three required green setup checks. The QR pairing
-page copies its details directly on the iPhone.
-
-See [Install](docs/INSTALL.md) for the complete friendly walkthrough and
-[Troubleshooting](docs/TROUBLESHOOTING.md) if a check is not green.
+Install the [watch app](https://apps.repebble.com/d7f2ccd94a0746d1a059433a),
+Organik Apps Pebble Connector and Tailscale on the Mac and paired phone. Follow
+[Install](docs/INSTALL.md) and [migration](docs/UNIFIED_CONNECTOR.md). The separate
+Reminderz Connector source in this repository remains available for development and rollback.
 
 ## Build from source
 
