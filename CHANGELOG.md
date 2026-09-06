@@ -1,5 +1,14 @@
 # Changelog
 
+## Watch 1.4.0
+
+- Browse every reminder with 50-item pages, Next/Previous rows, and page counts.
+- Keep refreshes on the current page and return to the preceding page when the final page empties.
+- Support two-step touch menu activation: tap to focus, then tap the focused row to activate.
+- Add organized Setup, Themes, and Shortcuts settings, color palettes, live previews, and saved custom themes.
+- Preserve button shortcuts and button-only deletion confirmation.
+- Recommend the unified Organik Apps Pebble Connector; pagination needs no new HTTP API.
+
 ## Connector 1.1.1
 
 - Explicitly load the bundled Reminderz artwork at startup to fix a blank running-app/Dock icon.

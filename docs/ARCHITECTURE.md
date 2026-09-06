@@ -35,7 +35,10 @@ first; completed reminders sort below them with the most recently completed firs
 refreshes the visible screen every 15 seconds unless disabled in Settings; refresh is silent.
 A state change waits for the Connector response before
 replacing the watch list, so a rejected EventKit write does not disappear optimistically from the UI.
-The watch holds at most 30 lists and 50 sorted reminders per list. Selected titles that exceed the
+The watch holds at most 30 lists and 50 sorted reminders per page. The phone fetches the full list
+and transfers the selected page. Refreshes retain the page; deletion clamps an empty final page
+to the preceding page. Previous/Next rows use the shared touch and button selection callback.
+Selected titles that exceed the
 available row width marquee after a short pause; other rows remain ellipsized.
 
 Deletion snapshots the reminder's stable ID when confirmation opens, so incoming refreshes cannot

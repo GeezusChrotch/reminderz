@@ -9,7 +9,8 @@ Reminderz puts Apple Reminders on Pebble Time and Pebble Time 2. Browse your rem
 open a list, press an item to complete it, or select **Add reminder** and dictate a new item.
 It is free and open-source software released under the [MIT License](LICENSE).
 
-This repository contains watch app `1.3.0` and Connector `1.1.1`:
+This repository contains watch app `1.4.0` and legacy standalone Connector `1.1.1` source.
+For current Mac installations, use the unified Organik Apps Pebble Connector:
 
 - native Pebble C menus for lists, open reminders, and completed reminders;
 - long-press Select to pin or unpin multiple lists, with pins remembered on the phone;
@@ -89,7 +90,7 @@ page has a **Copy pairing details** button, so Universal Clipboard is not requir
 
 Reminderz supports open and completed reminders, toggling either state, creating plain-title
 reminders, and deleting reminders after confirmation. Due-date display, notes, subtasks, tags, images, shared-list metadata, and offline mutation
-queues are intentionally deferred. Up to 30 lists and the first 50 reminders in each sorted list are
+queues are intentionally deferred. Up to 30 lists and 50 reminders per page in each sorted list are
 shown on the watch. The Connector can start at login so away-from-home sync remains available while
 the Mac is awake.
 
@@ -111,3 +112,11 @@ Thank you to ChatGPT and Codex, especially ChatGPT 5.6 Sol and ChatGPT 6 Astra, 
 
 We also thank the developers and communities behind the apps, libraries, fonts and tools we build
 on. [Full acknowledgments](ACKNOWLEDGMENTS.md).
+
+## Consistent phone settings
+
+The Pome-style tabbed settings and theme editor are described in [Phone settings](docs/SETTINGS.md).
+
+## Touch menu selection
+
+On a touch-capable watch, tap a different menu item to highlight it and read its scrolling title. Tap the highlighted item again to open or activate it; there is no need to tap quickly. Physical Select still activates the highlighted item.

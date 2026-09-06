@@ -1,5 +1,13 @@
 # Reminderz 1.0 release checklist
 
+## Watch 1.4.0 verification
+
+- [x] 25 automated tests and Basalt/Emery builds passed.
+- [x] Direct Emery touch Next/Previous and button Next paging requests verified.
+- [x] Installed feature candidate approved by Josh through the deployment coordinator.
+- [x] Release changes only the candidate's version metadata to 1.4.0; JavaScript and resources match.
+- [ ] Version-labeled 1.4.0 artifact installed on physical watch (coordinator-owned).
+
 ## Watch 1.3.0 / Connector 1.1.0 verification
 
 - [x] All 22 automated tests pass; Swift typecheck and Basalt/Emery builds pass.

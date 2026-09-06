@@ -8,7 +8,7 @@ Existing users: [migration guide](docs/UNIFIED_CONNECTOR.md). Publish this link 
 
 - Title: Reminderz
 - Category: Tools & Utilities
-- Version: 1.3.0
+- Version: 1.4.0
 - Price: Free
 - License: MIT open source
 - Platforms: Pebble Time (`basalt`) and Pebble Time 2 (`emery`)

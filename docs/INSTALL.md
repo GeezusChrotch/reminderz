@@ -1,5 +1,10 @@
 # Install Reminderz
 
+Reminder lists show 50 items per page. Use **Next page** and **Previous page** below **Add reminder**
+to reach the rest. The header shows the current page and total pages. On touch watches, tap to focus
+a paging row, then tap the focused row to activate it. With buttons, highlight it and press Select.
+Paging rows keep this Select behavior even with custom button mappings.
+
 Use the free **Organik Apps Pebble Connector** on macOS 14 or newer.
 
 1. Download the [unified connector](https://github.com/GeezusChrotch/organik-pebble-connector/releases/latest), drag it into Applications and open it.

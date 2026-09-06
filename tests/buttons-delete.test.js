@@ -24,6 +24,47 @@ function setup(storage = {}) {
     command:payload=>listeners.appmessage({payload})};
 }
 
+test('pagination reaches every reminder, preserves page on edits, and clamps after deletion',()=>{
+  const p=setup();
+  p.requests.shift().respond({lists:[{id:'list',title:'Test'}]});
+  let items=Array.from({length:101},(_,i)=>({id:'item'+i,title:'Item '+i}));
+  function page(n) {
+    p.sent.length=0;
+    p.command({COMMAND:2,ITEM_ID:'list',PAGE_INDEX:n});
+    p.requests.shift().respond({reminders:items});
+    return p.sent.filter(m=>m.ITEM_KIND===2);
+  }
+  assert.equal(page(0).length,50);
+  assert.equal(p.sent.at(-1).PAGE_COUNT,3);
+  assert.equal(page(1)[0].ITEM_ID,'item50');
+  assert.equal(page(2)[0].ITEM_ID,'item100');
+  p.command({COMMAND:6,ITEM_ID:'item100',CONFIRMED:1});
+  assert.match(p.requests[0].url,/item100\/delete$/);
+  p.requests.shift().respond({ok:true});
+  items=items.slice(0,100);
+  p.requests.shift().respond({reminders:items});
+  assert.equal(p.sent.at(-1).PAGE_INDEX,1);
+  assert.equal(p.sent.at(-1).PAGE_COUNT,2);
+  assert.equal(page(0)[0].ITEM_ID,'item0');
+  items=[]; page(0);
+  assert.equal(p.sent.at(-1).ITEM_COUNT,0);
+  assert.equal(p.sent.at(-1).PAGE_COUNT,1);
+});
+
+test('a page change discards an older pending response',()=>{
+  const p=setup();
+  p.requests.shift().respond({lists:[{id:'list',title:'Test'}]});
+  p.command({COMMAND:2,ITEM_ID:'list',PAGE_INDEX:0});
+  p.command({COMMAND:2,ITEM_ID:'list',PAGE_INDEX:1});
+  p.sent.length=0;
+  const items=Array.from({length:60},(_,i)=>({id:'item'+i,title:'Item '+i}));
+  p.requests.shift().respond({reminders:items});
+  assert.equal(p.sent.length,0);
+  p.requests.shift().respond({reminders:items});
+  assert.equal(p.sent[0].ITEM_ID,'item50');
+  assert.equal(p.sent.at(-1).PAGE_INDEX,1);
+});
+
 test('button defaults, persistence and navigation-safe validation',()=>{
   let p=setup();
   const defaults=p.api.normalizeButtons(null);

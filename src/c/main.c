@@ -1,4 +1,5 @@
 #include <pebble.h>
+#include "touch_menu.h"
 
 #define MAX_LISTS 30
 #define MAX_REMINDERS 50
@@ -54,6 +55,8 @@ static uint32_t s_buttons_lists = 1 | (5 << 3) | (3 << 6) | (4 << 9) | (2 << 12)
 static uint32_t s_buttons_reminders = 1 | (5 << 3) | (6 << 6) | (4 << 9) | (2 << 12) | (7 << 15);
 static ReminderList s_lists[MAX_LISTS];
 static ReminderItem s_reminders[MAX_REMINDERS];
+static uint16_t s_reminder_page = 0, s_reminder_pages = 1;
+static bool s_page_changed = false;
 static uint16_t s_list_count;
 static uint16_t s_reminder_count;
 static uint16_t s_selected_list;
@@ -91,6 +94,7 @@ static bool send_command(uint8_t command, int32_t index, const char *voice_text)
     return false;
   }
   dict_write_uint8(iterator, MESSAGE_KEY_COMMAND, command);
+  if (command == COMMAND_LOAD_REMINDERS) dict_write_uint16(iterator, MESSAGE_KEY_PAGE_INDEX, s_reminder_page);
   if (index >= 0) dict_write_int32(iterator, MESSAGE_KEY_ITEM_INDEX, index);
   if (command == COMMAND_TOGGLE_REMINDER && index >= 0 && index < s_reminder_count)
     dict_write_cstring(iterator, MESSAGE_KEY_ITEM_ID, s_reminders[index].id);
@@ -339,6 +343,9 @@ static void lists_row(GContext *ctx, const Layer *cell_layer, MenuIndex *cell_in
 }
 
 static void load_selected_list(void) {
+  s_reminder_page = 0;
+  s_reminder_pages = 1;
+  s_page_changed = true;
   s_reminder_count = 0;
   s_loading_reminders = true;
   s_reminders_error = false;
@@ -357,6 +364,8 @@ static void lists_select(MenuLayer *menu_layer, MenuIndex *cell_index, void *con
     return;
   }
   s_selected_list = cell_index->row;
+  s_reminder_page = 0;
+  s_reminder_pages = 1;
   load_selected_list();
 }
 
@@ -370,12 +379,15 @@ static void lists_long_select(MenuLayer *menu_layer, MenuIndex *cell_index, void
 
 static uint16_t reminders_rows(MenuLayer *menu_layer, uint16_t section_index, void *context) {
   if (s_loading_reminders || (s_reminders_error && !s_reminder_count)) return 1;
-  return s_reminder_count + 1;
+  return s_reminder_count + 1 + (s_reminder_page > 0) + (s_reminder_page + 1 < s_reminder_pages);
 }
 
 static void reminders_header(GContext *ctx, const Layer *cell_layer, uint16_t section_index,
                              void *context) {
-  draw_header(ctx, cell_layer, s_lists[s_selected_list].title);
+  char title[MAX_TITLE];
+  if (s_reminder_pages > 1) snprintf(title, sizeof(title), "%u/%u %s", s_reminder_page + 1, s_reminder_pages, s_lists[s_selected_list].title);
+  else snprintf(title, sizeof(title), "%s", s_lists[s_selected_list].title);
+  draw_header(ctx, cell_layer, title);
 }
 
 static void reminders_row(GContext *ctx, const Layer *cell_layer, MenuIndex *cell_index,
@@ -386,6 +398,11 @@ static void reminders_row(GContext *ctx, const Layer *cell_layer, MenuIndex *cel
     draw_row(ctx, cell_layer, s_status, NULL);
   } else if (cell_index->row == s_reminder_count) {
     draw_row(ctx, cell_layer, "+ Add reminder", "Dictate a new item");
+  } else if (cell_index->row > s_reminder_count) {
+    bool previous = s_reminder_page > 0 && cell_index->row == s_reminder_count + 1;
+    char page[32];
+    snprintf(page, sizeof(page), "Page %u of %u", s_reminder_page + 1, s_reminder_pages);
+    draw_row(ctx, cell_layer, previous ? "< Previous page" : "Next page >", page);
   } else {
     draw_checkbox_row(ctx, cell_layer, s_reminders[cell_index->row].title,
                       s_reminders[cell_index->row].completed);
@@ -419,6 +436,19 @@ static void reminders_select(MenuLayer *menu_layer, MenuIndex *cell_index, void 
       return;
     }
     dictation_session_start(s_dictation);
+    return;
+  }
+  if (cell_index->row > s_reminder_count) {
+    bool previous = s_reminder_page > 0 && cell_index->row == s_reminder_count + 1;
+    uint16_t old_page = s_reminder_page;
+    if (previous) s_reminder_page--;
+    else if (s_reminder_page + 1 < s_reminder_pages) s_reminder_page++;
+    else return;
+    if (!send_command(COMMAND_LOAD_REMINDERS, s_selected_list, NULL)) { s_reminder_page = old_page; return; }
+    s_page_changed = true;
+    s_loading_reminders = true;
+    snprintf(s_status, sizeof(s_status), "Loading page…");
+    menu_layer_reload_data(s_reminders_menu);
     return;
   }
   if (cell_index->row >= s_reminder_count) return;
@@ -462,7 +492,7 @@ static void delete_select(MenuLayer *menu, MenuIndex *index, void *context) {
 }
 static void delete_window_load(Window *window) {
   Layer *root = window_get_root_layer(window);
-  s_delete_menu = menu_layer_create(layer_get_bounds(root));
+  s_delete_menu = organik_menu_create(layer_get_bounds(root));
   menu_layer_set_callbacks(s_delete_menu, NULL, (MenuLayerCallbacks){
     .get_num_sections=one_section, .get_num_rows=delete_rows,
     .get_header_height=delete_header_height, .get_cell_height=delete_row_height,
@@ -506,6 +536,10 @@ static void button_action(MenuLayer *menu, uint8_t action) {
 }
 static void handle_button(ClickRecognizerRef recognizer, void *context, bool long_press) {
   ButtonId button = click_recognizer_get_button_id(recognizer);
+  if (!long_press && button == BUTTON_ID_SELECT && context == s_reminders_menu) {
+    MenuIndex selected = menu_layer_get_selected_index(s_reminders_menu);
+    if (selected.row > s_reminder_count) { reminders_select(s_reminders_menu, &selected, NULL); return; }
+  }
   uint8_t index = (button == BUTTON_ID_UP ? 0 : button == BUTTON_ID_SELECT ? 2 : 4) + (long_press ? 1 : 0);
   uint32_t actions = context == s_lists_menu ? s_buttons_lists : s_buttons_reminders;
   button_action((MenuLayer *)context, (actions >> (index * 3)) & 7);
@@ -635,11 +669,18 @@ static void inbox_received(DictionaryIterator *iterator, void *context) {
       }
       s_list_focus_id[0] = '\0';
     } else if (done->value->uint8 == ITEM_KIND_REMINDER) {
+      Tuple *page = dict_find(iterator, MESSAGE_KEY_PAGE_INDEX), *pages = dict_find(iterator, MESSAGE_KEY_PAGE_COUNT);
+      if (page) s_reminder_page = page->value->uint32;
+      if (pages) s_reminder_pages = pages->value->uint32;
       if (final_count) s_reminder_count = (uint16_t)final_count->value->int32;
       s_loading_reminders = false;
       s_reminders_error = false;
       snprintf(s_status, sizeof(s_status), "Up to date");
       menu_layer_reload_data(s_reminders_menu);
+      if (s_page_changed) {
+        menu_layer_set_selected_index(s_reminders_menu, (MenuIndex){.section=0,.row=0}, MenuRowAlignCenter, false);
+        s_page_changed = false;
+      }
     }
   }
 }
@@ -668,7 +709,7 @@ static void load_saved_theme(void) {
 
 static void lists_window_load(Window *window) {
   Layer *root = window_get_root_layer(window);
-  s_lists_menu = menu_layer_create(layer_get_bounds(root));
+  s_lists_menu = organik_menu_create(layer_get_bounds(root));
   menu_layer_set_callbacks(s_lists_menu, NULL, (MenuLayerCallbacks) {
     .get_num_sections = one_section,
     .get_num_rows = lists_rows,
@@ -687,7 +728,7 @@ static void lists_window_load(Window *window) {
 
 static void reminders_window_load(Window *window) {
   Layer *root = window_get_root_layer(window);
-  s_reminders_menu = menu_layer_create(layer_get_bounds(root));
+  s_reminders_menu = organik_menu_create(layer_get_bounds(root));
   menu_layer_set_callbacks(s_reminders_menu, NULL, (MenuLayerCallbacks) {
     .get_num_sections = one_section,
     .get_num_rows = reminders_rows,
@@ -714,12 +755,18 @@ static void reminders_window_unload(Window *window) {
 }
 
 static void init(void) {
+#if defined(PBL_TOUCH)
+  app_touch_navigation_enable(true);
+#endif
   load_saved_theme();
   if (persist_exists(30)) s_buttons_lists = persist_read_int(30);
   if (persist_exists(31)) s_buttons_reminders = persist_read_int(31);
   s_lists_window = window_create();
   s_reminders_window = window_create();
   s_delete_window = window_create();
+#if defined(PBL_TOUCH)
+  window_set_touch_bridge_disabled(s_delete_window, true);
+#endif
   window_set_window_handlers(s_delete_window, (WindowHandlers){.load=delete_window_load, .unload=delete_window_unload});
   window_set_window_handlers(s_lists_window, (WindowHandlers) {
     .load = lists_window_load, .appear = lists_window_appear, .unload = lists_window_unload
