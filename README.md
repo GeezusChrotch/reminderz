@@ -15,7 +15,7 @@ For current Mac installations, use the unified Organik Apps Pebble Connector:
 - native Pebble C menus for lists, open reminders, and completed reminders;
 - long-press Select to pin or unpin multiple lists, with pins remembered on the phone;
 - Pebble dictation for adding an item to the open list;
-- customizable short/long button actions and deletion with confirmation;
+- phone-configurable short/long button actions and Double Back and deletion with confirmation;
 - a PebbleKit JS sync layer and phone Settings page;
 - the Pome theme presets, colors, fonts, and font sizes;
 - a token-protected macOS EventKit connector;

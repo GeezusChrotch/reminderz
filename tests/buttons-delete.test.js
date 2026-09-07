@@ -68,11 +68,11 @@ test('a page change discards an older pending response',()=>{
 test('button defaults, persistence and navigation-safe validation',()=>{
   let p=setup();
   const defaults=p.api.normalizeButtons(null);
-  assert.deepEqual(Array.from(defaults.lists),[1,5,3,4,2,0]);
-  assert.deepEqual(Array.from(defaults.reminders),[1,5,6,4,2,7]);
+  assert.deepEqual(Array.from(defaults.lists),[1,5,3,4,2,0,0]);
+  assert.deepEqual(Array.from(defaults.reminders),[1,5,6,4,2,7,0]);
   const custom={lists:[4,1,3,5,2,0],reminders:[5,1,7,6,2,4]};
   p.listeners.webviewclosed({response:encodeURIComponent(JSON.stringify({gatewayURL:'https://example.invalid',gatewayToken:'test',buttons:custom}))});
-  assert.deepEqual(JSON.parse(p.storage.reminderzConfig).buttons,custom);
+  assert.deepEqual(JSON.parse(p.storage.reminderzConfig).buttons,{lists:custom.lists.concat(0),reminders:custom.reminders.concat(0)});
   p=setup(p.storage);
   assert.equal((p.sent[0].BUTTONS_REMINDERS >> 6)&7,7,'short Select deletion persists');
   assert.equal((p.sent[0].BUTTONS_REMINDERS >> 3)&7,1,'long Up navigation persists');
@@ -105,4 +105,13 @@ test('only confirmed deletion sends a request and it uses identity, not row posi
   assert.equal(p.requests.length,0,'duplicate actions are blocked while deleting');
   deletion.respond({ok:true});
   assert.match(p.requests.shift().url,/\/lists\/list\/reminders$/);
+});
+
+test('Double Back settings pack independent actions and preserve the six older bindings',()=>{
+ const p=setup(),buttons={lists:[1,5,3,4,2,0,5],reminders:[1,5,6,4,2,7,6]};
+ p.listeners.webviewclosed({response:encodeURIComponent(JSON.stringify({gatewayURL:'https://example.invalid',gatewayToken:'test',buttons}))});
+ const message=p.sent.findLast(m=>m.BUTTONS_LISTS!==undefined);
+ assert.equal((message.BUTTONS_LISTS>>18)&7,5);assert.equal((message.BUTTONS_REMINDERS>>18)&7,6);
+ assert.deepEqual(JSON.parse(p.storage.reminderzConfig).buttons,buttons);
+ assert.match(decodeURIComponent(p.api.configurationURL()),/Double Back/);
 });

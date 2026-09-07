@@ -546,7 +546,14 @@ static void handle_button(ClickRecognizerRef recognizer, void *context, bool lon
 }
 static void short_button(ClickRecognizerRef recognizer, void *context) { handle_button(recognizer, context, false); }
 static void long_button(ClickRecognizerRef recognizer, void *context) { handle_button(recognizer, context, true); }
+static void back_button(ClickRecognizerRef recognizer, void *context) { window_stack_pop(true); }
+static void double_back(ClickRecognizerRef recognizer, void *context) {
+  uint32_t actions = context == s_lists_menu ? s_buttons_lists : s_buttons_reminders;
+  button_action((MenuLayer *)context, (actions >> 18) & 7);
+}
 static void button_config(void *context) {
+  window_single_click_subscribe(BUTTON_ID_BACK,back_button);
+  window_multi_click_subscribe(BUTTON_ID_BACK,2,2,300,true,double_back);
   for (ButtonId button = BUTTON_ID_UP; button <= BUTTON_ID_DOWN; button++) {
     window_single_click_subscribe(button, short_button);
     window_long_click_subscribe(button, 600, long_button, NULL);

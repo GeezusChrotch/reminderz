@@ -157,7 +157,7 @@ var remindersRefreshPending = false;
 var mutationInFlight = false;
 var listsSignature = null;
 var remindersSignature = null;
-var DEFAULT_BUTTONS = {lists:[1,5,3,4,2,0], reminders:[1,5,6,4,2,7]};
+var DEFAULT_BUTTONS = {lists:[1,5,3,4,2,0,0], reminders:[1,5,6,4,2,7,0]};
 var BUTTON_LABELS = ["No action", "Move up", "Move down", "Open list", "Pin / unpin list", "New reminder", "Check / uncheck", "Delete reminder (confirm)"];
 
 function normalizeButtons(value) {
@@ -518,10 +518,10 @@ function configurationURL() {
   var themes = isTime2() ? TIME2_THEMES : CLASSIC_THEMES;
   var fonts = isTime2() ? ["inter","roboto","open-sans","montserrat","poppins"] :
     ["gothic","gothic-bold","roboto-condensed","droid-serif","bitham-black"];
-  var buttonsHTML = '<div class="card"><h2>Button actions</h2><p class="hint">Configure short and long presses separately. Keep Move up and Move down on each screen, and Open list on the lists screen. Back always goes back. Delete always asks for confirmation.</p>';
+  var buttonsHTML = '<div class="card"><h2>Button actions</h2><p class="hint">Configure short and long presses separately. Keep Move up and Move down on each screen, and Open list on the lists screen. Single Back returns. Press Back twice quickly for its configured shortcut (No action by default). All customization is on this phone. Delete always asks for confirmation.</p>';
   ["lists", "reminders"].forEach(function(screen) {
     buttonsHTML += '<h3>' + (screen === "lists" ? 'Lists screen' : 'Reminders screen') + '</h3>';
-    ["Up — short", "Up — long", "Select — short", "Select — long", "Down — short", "Down — long"].forEach(function(label, index) {
+    ["Up — short", "Up — long", "Select — short", "Select — long", "Down — short", "Down — long", "Double Back"].forEach(function(label, index) {
       buttonsHTML += '<label>' + label + '</label><select id="button_' + screen + '_' + index + '">';
       (screen === "lists" ? [0,1,2,3,4,5] : [0,1,2,4,5,6,7]).forEach(function(action) {
         buttonsHTML += '<option value="' + action + '"' + (config.buttons[screen][index] === action ? ' selected' : '') + '>' + BUTTON_LABELS[action] + '</option>';
@@ -555,7 +555,7 @@ function configurationURL() {
     '<button onclick="save()">Save &amp; apply</button><p class="hint">Reminder data stays on your Apple devices and private tailnet.</p>' +
     '<script>var themes='+JSON.stringify(themes).replace(/<\//g,'<\\/')+';var sizes='+JSON.stringify(THEME_SIZES)+';var defaultButtons='+JSON.stringify(DEFAULT_BUTTONS)+';' +
     'function resetButtons(){["lists","reminders"].forEach(function(s){defaultButtons[s].forEach(function(a,i){el("button_"+s+"_"+i).value=a})});el("buttonError").textContent=""}' +
-    'function readButtons(){var b={};["lists","reminders"].forEach(function(s){b[s]=[0,1,2,3,4,5].map(function(i){return Number(el("button_"+s+"_"+i).value)})});if(b.lists.indexOf(1)<0||b.lists.indexOf(2)<0||b.lists.indexOf(3)<0||b.reminders.indexOf(1)<0||b.reminders.indexOf(2)<0){el("buttonError").textContent="Keep Move up and Move down on both screens, and Open list on the lists screen.";el("buttonError").scrollIntoView();return null}return b}' +
+    'function readButtons(){var b={};["lists","reminders"].forEach(function(s){b[s]=[0,1,2,3,4,5,6].map(function(i){return Number(el("button_"+s+"_"+i).value)})});if(b.lists.indexOf(1)<0||b.lists.indexOf(2)<0||b.lists.indexOf(3)<0||b.reminders.indexOf(1)<0||b.reminders.indexOf(2)<0){el("buttonError").textContent="Keep Move up and Move down on both screens, and Open list on the lists screen.";el("buttonError").scrollIntoView();return null}return b}' +
     'function el(id){return document.getElementById(id)}function importBundle(){try{var b=JSON.parse(el("bundle").value.trim());el("url").value=b.gatewayURL||"";el("token").value=b.gatewayToken||"";el("status").textContent="Imported. Test, then save."}catch(e){el("status").textContent="That does not look like Connector pairing details."}}' +
     'function setSizes(wanted){var a=sizes[el("font").value]||[24],s=el("size");s.innerHTML="";for(var i=0;i<a.length;i++){var o=document.createElement("option");o.value=a[i];o.textContent=a[i]+" px";if(a[i]===Number(wanted))o.selected=true;s.appendChild(o)}preview()}' +
     'function choosePreset(){var t=themes[Number(el("preset").value)];el("text").value=t.text;el("background").value=t.background;el("selection").value=t.selection;el("font").value=t.font;setSizes(t.size)}' +

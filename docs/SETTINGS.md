@@ -21,3 +21,7 @@ Verified with generated-page browser checks on 320px and 390px viewports, Time/T
 ## Basic touch navigation
 
 Swipe through lists and reminders; tap an item to focus it, then tap the focused item to activate it. Next/Previous page rows use the same two-step behavior. Deletion confirmation keeps its button controls. Touch-capable watches must have touch enabled under Settings → Display → Touch. Wake the watch before using touch navigation. All existing physical-button controls remain available; non-touch watches keep their existing behavior.
+
+## Double Back and phone-only customization
+
+Double Back is configurable separately for Lists and Reminders, alongside the existing short/long button actions. It defaults to No action. Press Back twice quickly to run it; single Back returns and long Back retains the watch OS exit behavior. Existing six-button settings migrate without changing their assignments. Theme and button customization are phone-only; reminder actions and their deletion confirmation remain on the watch.
