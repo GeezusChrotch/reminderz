@@ -1,5 +1,13 @@
 # Changelog
 
+## Watch 1.4.2
+
+- Start menus at the top instead of leaving a blank gap above the first row; preserve scrolled positions on refresh.
+- Keep two-step touch activation and existing pagination controls.
+- Configure Double Back separately for Lists and Reminders in phone Settings. It defaults to No action; existing short/long bindings are preserved.
+- Single Back still returns, and deletion still requires confirmation on the watch.
+- Includes the unreleased 1.4.1 Double Back candidate and the shared startup-alignment correction. No Connector/API changes.
+
 ## Watch 1.4.0
 
 - Browse every reminder with 50-item pages, Next/Previous rows, and page counts.

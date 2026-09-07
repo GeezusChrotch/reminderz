@@ -9,7 +9,7 @@ Reminderz puts Apple Reminders on Pebble Time and Pebble Time 2. Browse your rem
 open a list, press an item to complete it, or select **Add reminder** and dictate a new item.
 It is free and open-source software released under the [MIT License](LICENSE).
 
-This repository contains watch app `1.4.0` and legacy standalone Connector `1.1.1` source.
+This repository contains watch app `1.4.2` and legacy standalone Connector `1.1.1` source.
 For current Mac installations, use the unified Organik Apps Pebble Connector:
 
 - native Pebble C menus for lists, open reminders, and completed reminders;

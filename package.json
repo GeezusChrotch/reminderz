@@ -1,7 +1,7 @@
 {
   "name": "reminderz",
   "author": "Organik Apps",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Apple Reminders on Pebble",
   "keywords": ["pebble-app"],
   "license": "MIT",

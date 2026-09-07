@@ -1,5 +1,13 @@
 # Reminderz 1.0 release checklist
 
+## Watch 1.4.2 release
+
+- [x] Includes Double Back and the shared startup-alignment fix; no new feature changes during release preparation.
+- [x] Startup candidate matches frozen artifact `143961f1cdd764e60a90d48147f34143034199fc522fd8cde51b1012ec8c82f8` before version bump.
+- [x] Shared native touch/non-touch startup, refresh, selection restoration, and scroll-position tests passed.
+- [ ] Physical install confirmed: the previous candidate attempt timed out without acknowledgment.
+- [ ] Pebble Appstore publication: deployment coordinator owns upload and verification.
+
 ## Watch 1.4.0 verification
 
 - [x] 25 automated tests and Basalt/Emery builds passed.
