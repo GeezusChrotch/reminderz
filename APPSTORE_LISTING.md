@@ -2,7 +2,7 @@
 
 Coordinated release update: recommend **Organik Apps Pebble Connector** for Mac setup.
 Download: https://github.com/GeezusChrotch/organik-pebble-connector/releases/latest
-Existing users: [migration guide](docs/UNIFIED_CONNECTOR.md). Publish this link only after the connector release.
+Existing users: [migration guide](docs/UNIFIED_CONNECTOR.md).
 
 ## Basic details
 
@@ -43,17 +43,18 @@ forwarding. The API stays on the Mac's loopback interface, requires a random Key
 and is reachable only through your tailnet.
 
 Requires macOS 14+, Tailscale on Mac and iPhone, and the free Organik Apps Pebble Connector. Dictation requires
-a working Pebble dictation service. Shows up to 30 lists and 50 sorted reminders per list.
+a working Pebble dictation service. Shows up to 30 lists; browse all reminders in 50-item pages.
 
 Free and open source under the MIT License. Independent and not affiliated with Apple, Tailscale,
 Pebble, or Rebble.
 
 ## Short release notes
 
-Coordinated connector release: migrate existing pairing to Organik Apps Pebble Connector.
-Watch features include Apple Reminders lists, open/completed checkboxes, complete and reopen actions,
-dictation, long-title marquee, optional 15-second refresh, Pome-style themes, private remote
-Tailscale sync, and QR setup.
+1.4.2 fixes the blank gap above the first menu row while preserving scrolled positions and two-step
+touch activation. Configure Double Back separately for Lists and Reminders in phone Settings;
+it defaults to No action. Single Back, existing shortcuts, and deletion confirmation are preserved.
+Browse all reminders in 50-item pages using touch or button Next/Previous controls. No Connector
+update is required for these changes.
 
 ## Optional future screenshot additions
 
